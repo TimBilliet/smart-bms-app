@@ -1,0 +1,10 @@
+<resources>
+    <string name="app_name">Smart BMS app</string>
+    <string name="action_settings">Settings</string>
+    <!-- Strings used for fragments for navigation -->
+    <string name="home_fragment_label">Home</string>
+    <string name="settings_fragment_label">Settings</string>
+
+    <string name="action_about">About</string>
+    <string name="about_fragment_label">About</string>
+</resources>
