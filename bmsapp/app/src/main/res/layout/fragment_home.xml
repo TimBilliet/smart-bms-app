@@ -12,12 +12,73 @@
         android:padding="16dp">
 
         <TextView
-            android:id="@+id/textview_first"
+            android:id="@+id/textViewBatVoltage"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="this is homefrag"
-            app:layout_constraintBottom_toBottomOf="parent"
+            android:layout_marginTop="8dp"
+            android:layout_marginBottom="16dp"
+            android:text="0"
+            android:textSize="34sp"
+            app:layout_constraintBottom_toTopOf="@+id/textViewPackVoltage"
             app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toStartOf="parent" />
+            app:layout_constraintHorizontal_bias="0.741"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
+
+        <TextView
+            android:id="@+id/textViewCurrent"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:layout_marginBottom="16dp"
+            android:text="0"
+            android:textSize="34sp"
+            app:layout_constraintBottom_toTopOf="@+id/textViewChargeCurrent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintHorizontal_bias="0.188"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
+
+        <Switch
+            android:id="@+id/switchCharging"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="120dp"
+            android:layout_marginTop="24dp"
+            android:text="Charging"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@+id/textViewChargeCurrent" />
+
+        <TextView
+            android:id="@+id/textViewPackVoltage"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:text="Pack voltage (V)"
+            app:layout_constraintEnd_toEndOf="@+id/textViewBatVoltage"
+            app:layout_constraintStart_toStartOf="@+id/textViewBatVoltage"
+            app:layout_constraintTop_toBottomOf="@+id/textViewBatVoltage" />
+
+        <TextView
+            android:id="@+id/textViewChargeCurrent"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:text="Charge current (A)"
+            app:layout_constraintEnd_toEndOf="@+id/textViewCurrent"
+            app:layout_constraintStart_toStartOf="@+id/textViewCurrent"
+            app:layout_constraintTop_toBottomOf="@+id/textViewCurrent" />
+
+        <Button
+            android:id="@+id/buttonReadVoltage"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="40dp"
+            android:onClick="onUpdateVoltageClick"
+            android:text="Read pack voltage"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@+id/switchCharging" />
+
     </androidx.constraintlayout.widget.ConstraintLayout>
 </androidx.core.widget.NestedScrollView>

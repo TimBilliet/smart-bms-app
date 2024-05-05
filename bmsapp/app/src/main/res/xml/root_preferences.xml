@@ -1,0 +1,36 @@
+<PreferenceScreen xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <PreferenceCategory app:title="BLE settings"
+        app:icon="@drawable/baseline_bluetooth_24">
+
+        <EditTextPreference
+            app:key="mac_address"
+            app:title="BMS MAC address"
+            app:useSimpleSummaryProvider="true"
+            />
+        <EditTextPreference
+            app:key="service_uuid"
+            app:title="BMS service UUID"
+            app:useSimpleSummaryProvider="true"
+
+            />
+
+    </PreferenceCategory>
+
+    <PreferenceCategory app:title="Parameters"
+        app:key="param_category">
+
+        <SwitchPreferenceCompat
+            app:key="param"
+            app:title="@string/sync_title" />
+
+        <SwitchPreferenceCompat
+            app:dependency="param"
+            app:key="attachment"
+            app:summaryOff="@string/attachment_summary_off"
+            app:summaryOn="@string/attachment_summary_on"
+            app:title="@string/attachment_title" />
+
+    </PreferenceCategory>
+
+</PreferenceScreen>

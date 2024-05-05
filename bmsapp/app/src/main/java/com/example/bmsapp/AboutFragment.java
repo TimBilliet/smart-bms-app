@@ -21,16 +21,6 @@ public class AboutFragment extends Fragment {
 
     @Override public void onStart() {
         super.onStart();
-        OnBackPressedCallback callback = new OnBackPressedCallback(true /* enabled by default */) {
-            @Override
-            public void handleOnBackPressed() {
-                if (isEnabled()) {
-
-                    requireActivity().getSupportFragmentManager().popBackStack();
-                }
-            }
-        };
-        requireActivity().getOnBackPressedDispatcher().addCallback(this, callback);
     }
     @Override
     public View onCreateView(

@@ -12,21 +12,11 @@
         tools:layout="@layout/fragment_home">
 
         <action
-            android:id="@+id/action_HomeFragment_to_SettingsFragment"
-            app:destination="@id/SettingsFragment" />
-        <action
             android:id="@+id/action_HomeFragment_to_AboutFragment"
             app:destination="@id/AboutFragment" />
-    </fragment>
-    <fragment
-        android:id="@+id/SettingsFragment"
-        android:name="com.example.bmsapp.SettingsFragment"
-        android:label="@string/settings_fragment_label"
-        tools:layout="@layout/fragment_settings">
-
         <action
-            android:id="@+id/action_SettingsFragment_to_HomeFragment"
-            app:destination="@id/HomeFragment" />
+            android:id="@+id/action_HomeFragment_to_SettingsFragment"
+            app:destination="@id/SettingsFragment" />
     </fragment>
     <fragment
         android:id="@+id/AboutFragment"
@@ -36,6 +26,16 @@
 
         <action
             android:id="@+id/action_AboutFragment_to_HomeFragment"
+            app:destination="@id/HomeFragment" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/SettingsFragment"
+        android:name="com.example.bmsapp.SettingsFragment"
+        android:label="@string/settings_fragment_label" >
+
+        <action
+            android:id="@+id/action_SettingsFragment_to_HomeFragment"
             app:destination="@id/HomeFragment" />
     </fragment>
 </navigation>
