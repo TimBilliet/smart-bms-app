@@ -3,7 +3,17 @@ package com.example.bmsapp;
 import static android.os.Trace.isEnabled;
 
 import android.bluetooth.BluetoothAdapter;
+import android.bluetooth.BluetoothGattCharacteristic;
+import android.bluetooth.BluetoothGattService;
+import android.content.BroadcastReceiver;
+import android.content.ComponentName;
+import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
+import android.content.ServiceConnection;
+import android.os.Build;
 import android.os.Bundle;
+import android.os.IBinder;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -13,10 +23,14 @@ import android.widget.TextView;
 
 import androidx.activity.OnBackPressedCallback;
 import androidx.annotation.NonNull;
+import androidx.annotation.RequiresApi;
 import androidx.fragment.app.Fragment;
 import androidx.navigation.fragment.NavHostFragment;
 
 import com.example.bmsapp.databinding.FragmentHomeBinding;
+
+import java.util.Objects;
+import java.util.UUID;
 
 public class HomeFragment extends Fragment{
     private View view;
@@ -24,56 +38,100 @@ public class HomeFragment extends Fragment{
     private BluetoothAdapter bluetoothAdapter;
     public static final String TAG = "Homefragment";
     private TextView textViewBatVoltage;
-    private TextView textV;
-    Button myButton;
+    private BluetoothLeService bluetoothLeService;
+    private boolean isServiceBound = false;
 
-    /*
-    @Override
-    public View onCreateView( @NonNull LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
-        MainActivity mainActivity = (MainActivity) getActivity();
-        View myView = inflater.inflate(R.layout.fragment_home, container, false);
-        //myButton = (Button) myView.findViewById(R.id.buttonReadVoltage);
-       // myButton.setOnClickListener(this);
-        if (mainActivity != null) {
-            bluetoothAdapter = mainActivity.getBluetoothAdapter();
+    private final BroadcastReceiver bleUpdateReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            String action = intent.getAction();
+            if ("BLE_DATA".equals(action)) {
+                String data = intent.getStringExtra("BLE_DATA");
+                textViewBatVoltage.setText(data);
+                logQuick(data);
+            }
         }
-        //textViewPackVoltage = view.findViewById(R.id.textViewPackVoltage);
+    };
+    private final ServiceConnection serviceConnection = new ServiceConnection() {
+        @Override
+        public void onServiceConnected(ComponentName componentName, IBinder service) {
+            BluetoothLeService.LocalBinder binder = (BluetoothLeService.LocalBinder) service;
+            bluetoothLeService = binder.getService();
+            isServiceBound = true;
+            Log.d(TAG, "Service connected");
+        }
 
-        binding = FragmentHomeBinding.inflate(inflater, container, false);
-        //textV = view.findViewById(R.id.textViewPackVoltage);
-        return binding.getRoot();
+        @Override
+        public void onServiceDisconnected(ComponentName componentName) {
+            bluetoothLeService = null;
+            isServiceBound = false;
+            Log.d(TAG, "Service disconnected");
+        }
+    };
+    public void logQuick(String message) {
+        Log.d(TAG, message);
     }
-
-     */
+    @RequiresApi(api = Build.VERSION_CODES.TIRAMISU)
     @Override
-    public View onCreateView(LayoutInflater inflater, ViewGroup container,
-                             Bundle savedInstanceState) {
+    public void onResume() {
+        super.onResume();
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            requireActivity().registerReceiver(bleUpdateReceiver, new IntentFilter("BLE_DATA"), Context.RECEIVER_NOT_EXPORTED);
+        }
+    }
+    @Override
+    public void onPause() {
+        super.onPause();
+        requireActivity().unregisterReceiver(bleUpdateReceiver);
+    }
+    @Override
+    public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.fragment_home, container, false);
-        MainActivity mainActivity = (MainActivity) getActivity();
 
-        // Find the TextView within the fragment layout
         textViewBatVoltage = view.findViewById(R.id.textViewBatVoltage);
-        if (mainActivity != null) {
-            bluetoothAdapter = mainActivity.getBluetoothAdapter();
-        }
+        Button readButton = view.findViewById(R.id.buttonReadVoltage);
+        readButton.setOnClickListener(v -> {
+            if (isServiceBound && bluetoothLeService != null) {
+                BluetoothGattCharacteristic characteristic = getCharacteristic();
+                if (characteristic != null) {
+                    bluetoothLeService.readCharacteristic(characteristic);
+                } else {
+                    Log.w(TAG, "Characteristic x3001 not found");
+                }
+            }
+        });
+        Intent gattServiceIntent = new Intent(getActivity(), BluetoothLeService.class);
+        requireActivity().bindService(gattServiceIntent, serviceConnection, Context.BIND_AUTO_CREATE);
+        logQuick("i am speed");
         return view;
-    }
-    void setVoltageText(String voltage) {
-        Log.d(TAG, voltage);
-        Log.d(TAG, "VOLTAGE IN HOMEFRAG");
-        //textV.setText(voltage);
-        //binding.textViewPackVoltage.setText(voltage);
-        textViewBatVoltage.setText(voltage);
     }
 
     public void onViewCreated(@NonNull View view, Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
-        //textViewPackVoltage = binding.textViewPackVoltage;
     }
 
     @Override
     public void onDestroyView() {
         super.onDestroyView();
         binding = null;
+    }
+    private BluetoothGattCharacteristic getCharacteristic() {
+        if (bluetoothLeService != null && bluetoothLeService.getBluetoothGatt() != null) {
+            String shortUuid = "0x3000"; //bat voltage characteristic
+            String shortchar = "0x3001";
+            // Convert the 16-bit UUID to 128-bit format
+            String longUuid = shortUuid.replace("0x", "") + "-0000-1000-8000-00805F9B34FB";
+            String longUuidChar = shortchar.replace("0x", "") + "-0000-1000-8000-00805F9B34FB";
+            // Create the UUID object
+            UUID serviceUuid = UUID.fromString(longUuid);
+            UUID charUuid = UUID.fromString(longUuidChar);
+            BluetoothGattService service = bluetoothLeService.getBluetoothGatt().getService(serviceUuid);
+            if (service != null) {
+                return service.getCharacteristic(charUuid);
+            } else {
+                logQuick("service is null");
+            }
+        }
+        return null;
     }
 }

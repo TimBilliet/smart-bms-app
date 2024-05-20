@@ -1,33 +1,21 @@
 package com.example.bmsapp;
 
-import android.Manifest;
 import android.app.AlertDialog;
 import android.bluetooth.BluetoothAdapter;
-import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothGatt;
-import android.bluetooth.BluetoothGattCallback;
-import android.bluetooth.BluetoothGattCharacteristic;
 import android.bluetooth.BluetoothGattService;
-import android.bluetooth.BluetoothProfile;
+import android.content.ComponentName;
 import android.content.Context;
-import android.content.DialogInterface;
-import android.content.SharedPreferences;
-import android.content.pm.PackageManager;
+import android.content.Intent;
+import android.content.ServiceConnection;
 import android.os.Bundle;
+import android.os.IBinder;
 import android.util.Log;
 
-import androidx.activity.OnBackPressedCallback;
-import androidx.activity.OnBackPressedDispatcher;
 import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
-import androidx.core.app.ActivityCompat;
 import androidx.preference.EditTextPreference;
-import androidx.preference.Preference;
 import androidx.preference.PreferenceCategory;
 import androidx.preference.PreferenceFragmentCompat;
-import androidx.preference.PreferenceManager;
-import androidx.preference.SwitchPreference;
-import androidx.preference.SwitchPreferenceCompat;
 
 //import com.example.bmsapp.databinding.FragmentSettingsBinding;
 
@@ -41,70 +29,63 @@ public class SettingsFragment extends PreferenceFragmentCompat {
     public static final String TAG = "Settingsfragment";
     private static final Pattern pattern = Pattern.compile(MAC_ADDRESS_PATTERN);
     private String macAddress;
-    public static String enteredUUID;
-    private Context mContext;
-    private BluetoothAdapter bluetoothAdapter;
-    private BluetoothGatt bluetoothGatt;
-    private BluetoothGattService gattService;
     private boolean isConnected = false;
-    public static PreferenceCategory parameterCategory;
     private EditTextPreference macAddressPreference;
-    private EditTextPreference serviceUuidPreference;
+    private BluetoothLeService bluetoothLeService;
 
 
     @Override
     public void onAttach(@NonNull Context context) {
         super.onAttach(context);
-        mContext = context;
     }
 
     @Override
     public void onCreatePreferences(Bundle savedInstanceState, String rootKey) {
-        MainActivity mainActivity = (MainActivity) getActivity();
-        if (mainActivity != null) {
-            bluetoothAdapter = mainActivity.getBluetoothAdapter();
-        }
-
         setPreferencesFromResource(R.xml.root_preferences, rootKey);
         macAddressPreference = findPreference("mac_address");
-        serviceUuidPreference = findPreference("service_uuid");
-        if (macAddressPreference != null && serviceUuidPreference != null) {
+        if (macAddressPreference != null) {
             macAddressPreference.setPositiveButtonText("Connect");
             macAddressPreference.setOnBindEditTextListener(
                     editText -> editText.setHint("AA:AA:AA:AA:AA:AA"));
             macAddressPreference.setOnPreferenceChangeListener((preference, macAddress) -> {
-                enteredUUID = serviceUuidPreference.getText();
-                if (!pattern.matcher(macAddress.toString()).matches()) {
-                    showDialog("Invalid MAC address", "OK");
-                } else if (!isValidUUID(serviceUuidPreference.getText())) {
-                    showDialog("Invalid service UUID", "OK");
+                if (!isValidMacAddress((String) macAddress)) {
+                    showDialog("Invalid MAC address");
                 } else {
-                    this.macAddress = (String) macAddress;
-                    //connectToDevice(this.macAddress);
-                    if(mainActivity != null) {
-                        mainActivity.connectToDevice(this.macAddress);
-                    }
-                }
-                return true;
-            });
-            serviceUuidPreference.setOnBindEditTextListener(
-                    editText -> editText.setHint("0x0000"));
-
-            serviceUuidPreference.setOnPreferenceChangeListener((preference, serviceUUID) -> {
-                if (isValidUUID((String) serviceUUID)) {
-                    enteredUUID = (String) serviceUUID;
-                    Log.d(TAG, enteredUUID);
+                    this.macAddress = convertToUpperCase((String) macAddress);
+                    Intent gattServiceIntent = new Intent(getActivity(), BluetoothLeService.class);
+                    requireActivity().bindService(gattServiceIntent, serviceConnection, Context.BIND_AUTO_CREATE);
                 }
                 return true;
             });
         }
-        parameterCategory = findPreference("param_category");
-        if (parameterCategory != null) {
-            parameterCategory.setVisible(false);
-        }
-
-
     }
+    public boolean isValidMacAddress(String macAddress) {
+        final String MAC_ADDRESS_PATTERN = "^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$";
+        final Pattern pattern = Pattern.compile(MAC_ADDRESS_PATTERN);
+        return pattern.matcher(macAddress).matches();
+    }
+    private final ServiceConnection serviceConnection = new ServiceConnection() {
+        @Override
+        public void onServiceConnected(ComponentName componentName, IBinder service) {
+            BluetoothLeService.LocalBinder binder = (BluetoothLeService.LocalBinder) service;
+            bluetoothLeService = binder.getService();
+            if (!bluetoothLeService.initialize()) {
+                Log.e("BLE", "Unable to initialize Bluetooth");
+                getActivity().finish();
+            }
+
+            boolean connectStatus = bluetoothLeService.connect(macAddress);
+
+            if(!connectStatus) {
+                showDialog("Connection failed");
+            }
+        }
+
+        @Override
+        public void onServiceDisconnected(ComponentName componentName) {
+            bluetoothLeService = null;
+        }
+    };
 
     public static boolean isValidUUID(String input) {
         if (input == null || input.length() != 6) {
@@ -118,16 +99,18 @@ public class SettingsFragment extends PreferenceFragmentCompat {
         return hexDigits.matches(hexPattern);
     }
 
-    private void showDialog(String message, String okButton) {
+    private void showDialog(String message) {
         AlertDialog.Builder builder = new AlertDialog.Builder(getActivity());
         builder.setMessage(message)
-                .setPositiveButton(okButton, (dialog, which) -> {
+                .setPositiveButton("OK", (dialog, which) -> {
 
                 });
         AlertDialog dialog = builder.create();
         dialog.show();
     }
-
+    public void logQuick(String message) {
+        Log.d(TAG, message);
+    }
     public static String convertToUpperCase(String address) {
         if (address == null || address.isEmpty()) {
             return address;
@@ -142,87 +125,5 @@ public class SettingsFragment extends PreferenceFragmentCompat {
         }
         return converted.toString();
     }
-
-    public void connectToDevice(String address) {
-        address = convertToUpperCase(address);
-        BluetoothDevice devicee = bluetoothAdapter.getRemoteDevice(address);
-        if (ActivityCompat.checkSelfPermission(requireActivity(), Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
-            return;
-        }
-
-        bluetoothGatt = devicee.connectGatt(getActivity(), false, gattCallback);
-    }
-
-    private final BluetoothGattCallback gattCallback = new BluetoothGattCallback() {
-        @Override
-        public void onConnectionStateChange(BluetoothGatt gatt, int status, int newState) {
-            Log.d(TAG, "connection state changed");
-            if (newState == BluetoothProfile.STATE_CONNECTED) {
-                // Device connected, discover services
-                if (ActivityCompat.checkSelfPermission(requireActivity(), android.Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
-                    return;
-                }
-
-                requireActivity().runOnUiThread(() -> showDialog("Connection to BMS successful", "OK"));
-                Log.d(TAG, "CONNECTED");
-                isConnected = true;
-                parameterCategory.setVisible(true);
-                gatt.discoverServices();
-            } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
-                isConnected = false;
-                requireActivity().runOnUiThread(() -> {
-                    Log.d(TAG, "DISCONNECTED");
-                    showDialog("Disconnected from BMS", "OK");
-                });
-                parameterCategory.setVisible(false);
-            }
-        }
-
-        @Override
-        public void onServicesDiscovered(BluetoothGatt gatt, int status) {
-            // Services discovered, you can now interact with the BLE server
-            Log.d(TAG, "services discovered");
-            boolean serviceFound = false;
-            Log.d(TAG, enteredUUID.substring(2));
-            for (BluetoothGattService gattService : bluetoothGatt.getServices()) {
-                if (gattService.getUuid().toString().substring(4, 8).equals(enteredUUID.substring(2))) {
-                    serviceFound = true;
-                }
-            }
-            if (serviceFound) {
-                Log.d(TAG, "SERVICE UUID MATCH");
-                //do stuff
-            } else {
-                if (ActivityCompat.checkSelfPermission(requireActivity(), Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
-                    return;
-                }
-                isConnected = false;
-                parameterCategory.setVisible(false);
-                bluetoothGatt.close();
-                bluetoothGatt = null;
-                requireActivity().runOnUiThread(() -> {
-                    showDialog("Disconnected from BMS, no service found", "OK");
-
-                });
-            }
-
-
-        }
-
-        @Override
-        public void onCharacteristicRead(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, int status) {
-            // Characteristic read callback
-        }
-
-        @Override
-        public void onCharacteristicWrite(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, int status) {
-            // Characteristic write callback
-        }
-
-        @Override
-        public void onCharacteristicChanged(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic) {
-            // Characteristic notification/indication received
-        }
-    };
 
 }

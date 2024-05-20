@@ -5,7 +5,6 @@
     <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" android:maxSdkVersion="30" />
 
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT"/>
-
     <uses-permission android:name="android.permission.BLUETOOTH_SCAN"
         android:usesPermissionFlags="neverForLocation"
         tools:targetApi="s" />
@@ -19,6 +18,7 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.BmsApp"
         tools:targetApi="31">
+        <service android:name=".BluetoothLeService" />
         <activity
             android:name=".MainActivity"
             android:exported="true"

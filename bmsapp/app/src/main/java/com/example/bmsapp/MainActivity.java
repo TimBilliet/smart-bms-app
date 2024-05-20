@@ -44,9 +44,11 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
+import android.widget.FrameLayout;
 
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 
 public class MainActivity extends AppCompatActivity {
@@ -66,12 +68,14 @@ public class MainActivity extends AppCompatActivity {
     private BluetoothGattCharacteristic cellVoltageChar;
     private BluetoothGattCharacteristic currentChar;
     private HomeFragment homeFragment;
+    private HomeFragment homeFrag;
     private SettingsFragment settingsFragment;
     private androidx.fragment.app
             .FragmentManager mFragmentManager;
     private androidx.fragment.app
             .FragmentTransaction mFragmentTransaction;
     private static final int MY_PERMISSION_REQUEST_CODE = 420;
+    FrameLayout layout;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -81,7 +85,6 @@ public class MainActivity extends AppCompatActivity {
         setContentView(binding.getRoot());
 
         setSupportActionBar(binding.toolbar);
-
         navController = Navigation.findNavController(this, R.id.nav_host_fragment_content_main);
         appBarConfiguration = new AppBarConfiguration.Builder(navController.getGraph()).build();
         NavigationUI.setupActionBarWithNavController(this, navController, appBarConfiguration);
@@ -108,16 +111,7 @@ public class MainActivity extends AppCompatActivity {
             }
         });
         requestBluetoothEnable();
-        OnBackPressedCallback callback = new OnBackPressedCallback(true) {
-            @Override
-            public void handleOnBackPressed() {
-                if (isEnabled()) {
-                    finish();
-                }
-            }
-        };
-        homeFragment = new HomeFragment();
-        //settingsFragment = new SettingsFragment();
+
     }
 
     private void requestBluetoothEnable() {
@@ -163,18 +157,17 @@ public class MainActivity extends AppCompatActivity {
         return true;
     }
 
-    public BluetoothAdapter getBluetoothAdapter() {
-        return bluetoothAdapter;
-    }
 
     @SuppressLint("RestrictedApi")
     @Override
     public void onBackPressed() {
-
+        logQuick(Objects.requireNonNull(Objects.requireNonNull(navController.getCurrentDestination()).getLabel()).toString());
         if (navController.getCurrentDestination().getLabel().toString().equals("Settings") || navController.getCurrentDestination().getLabel().toString().equals("About")) {
             hideOverflowMenu = false;
             supportInvalidateOptionsMenu();
             navController.navigate(R.id.HomeFragment);
+        } else if(navController.getCurrentDestination().getLabel().toString().equals("Home")) {
+            moveTaskToBack(true);
         } else {
             super.onBackPressed();
         }
@@ -184,7 +177,6 @@ public class MainActivity extends AppCompatActivity {
     public boolean onOptionsItemSelected(MenuItem item) {
         // Handle action bar item clicks here.
         int id = item.getItemId();
-        //navController = Navigation.findNavController(this, R.id.nav_host_fragment_content_main);
         if (id == R.id.action_about) {
             navController.navigate(R.id.AboutFragment);
             hideOverflowMenu = true;
@@ -194,6 +186,7 @@ public class MainActivity extends AppCompatActivity {
             navController.navigate(R.id.SettingsFragment);
             hideOverflowMenu = true;
             supportInvalidateOptionsMenu();
+            //SettingsFragment.parameterCategory.setVisible(false);
             return true;
         } else if (id == android.R.id.home) {
             hideOverflowMenu = false;
@@ -201,30 +194,6 @@ public class MainActivity extends AppCompatActivity {
             navController.navigate(R.id.HomeFragment);
         }
         return super.onOptionsItemSelected(item);
-    }
-
-    public void connectToDevice(String address) {
-        address = convertToUpperCase(address);
-        BluetoothDevice devicee = bluetoothAdapter.getRemoteDevice(address);
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
-            return;
-        }
-        bluetoothGatt = devicee.connectGatt(this, false, gattCallback);
-    }
-
-    public static String convertToUpperCase(String address) {
-        if (address == null || address.isEmpty()) {
-            return address;
-        }
-        StringBuilder converted = new StringBuilder();
-        for (char c : address.toCharArray()) {
-            if (Character.isLetter(c)) {
-                converted.append(Character.toUpperCase(c));
-            } else {
-                converted.append(c);
-            }
-        }
-        return converted.toString();
     }
 
     private void showDialog(String message, String okButton) {
@@ -237,119 +206,9 @@ public class MainActivity extends AppCompatActivity {
         dialog.show();
     }
 
-    private final BluetoothGattCallback gattCallback = new BluetoothGattCallback() {
-        @Override
-        public void onConnectionStateChange(BluetoothGatt gatt, int status, int newState) {
-            Log.d(TAG, "connection state changed IN MAINNNNNNNNNNN");
-            if (newState == BluetoothProfile.STATE_CONNECTED) {
-                // Device connected, discover services
-                runOnUiThread(() -> showDialog("Connection to BMS successful", "OK"));
-                Log.d(TAG, "CONNECTED");
-                isConnected = true;
-                SettingsFragment.parameterCategory.setVisible(true);
-                if (ActivityCompat.checkSelfPermission(mainActivity, Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
-                    return;
-                }
-                gatt.discoverServices();
-            } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
-                isConnected = false;
-                runOnUiThread(() -> {
-                    Log.d(TAG, "DISCONNECTED");
-                    showDialog("Disconnected from BMS", "OK");
-                });
-                SettingsFragment.parameterCategory.setVisible(false);
-            }
-        }
-
-        @Override
-        public void onServicesDiscovered(BluetoothGatt gatt, int status) {
-            // Services discovered, you can now interact with the BLE server
-            BluetoothGattService service = null;
-            gattIf = gatt;
-            boolean serviceFound = false;
-            Log.d(TAG, SettingsFragment.enteredUUID.substring(2));
-            for (BluetoothGattService gattService : bluetoothGatt.getServices()) {
-                if (gattService.getUuid().toString().substring(4, 8).equals(SettingsFragment.enteredUUID.substring(2))) {
-                    serviceFound = true;
-                    service = gattService;
-                }
-            }
-            if (serviceFound) {
-
-                Log.d(TAG, "SERVICE UUID MATCH IN MAINACTIVITY");
-                //do stuff
-                for (BluetoothGattCharacteristic gattCharacteristic : service.getCharacteristics()) {
-                    logQuick(gattCharacteristic.getUuid().toString().substring(4, 8));
-                    switch (gattCharacteristic.getUuid().toString().substring(4, 8)) {
-                        case "3001"://Voltage characteristic
-                            voltageChar = gattCharacteristic;
-                            if (ActivityCompat.checkSelfPermission(mainActivity, Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
-
-                                return;
-                            }
-                            //gatt.readCharacteristic(gattCharacteristic);
-                            //handlePackVoltage(voltageChar);
-                            break;
-                        case "3002"://Cell voltage characteristic
-                            cellVoltageChar = gattCharacteristic;
-                            break;
-                        case "3003":
-                            currentChar = gattCharacteristic;
-                            break;
-                    }
-                }
-                //BluetoothGattCharacteristic voltchar = service.getCharacteristic();
-            } else {
-                if (ActivityCompat.checkSelfPermission(mainActivity, Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
-                    return;
-                }
-                isConnected = false;
-                SettingsFragment.parameterCategory.setVisible(false);
-                bluetoothGatt.close();
-                bluetoothGatt = null;
-                runOnUiThread(() -> {
-                    showDialog("Disconnected from BMS, no service found", "OK");
-
-                });
-            }
-
-        }
-
-        public void handlePackVoltage(BluetoothGattCharacteristic voltageChar) {
-
-            logQuick(voltageChar.getUuid().toString());
-        }
-
-        public void logQuick(String message) {
-            Log.d(TAG, message);
-        }
-
-        @Override
-        public void onCharacteristicRead(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, int status) {
-            // Characteristic read callback
-            if (status == BluetoothGatt.GATT_SUCCESS) {
-                byte[] data = characteristic.getValue();
-                // Handle the received data (byte array)
-                if (characteristic.equals(voltageChar)) {
-                    int batvoltage = ((data[0] & 0xFF) << 8) | (data[1] & 0xFF);
-                    logQuick(String.valueOf(batvoltage));
-
-                    homeFragment.setVoltageText(String.valueOf(batvoltage));// werkt niet
-                }
-            }
-        }
-
-        @Override
-        public void onCharacteristicWrite(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, int status) {
-            // Characteristic write callback
-        }
-
-        @Override
-        public void onCharacteristicChanged(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic) {
-            // Characteristic notification/indication received
-        }
-    };
-
+    public void logQuick(String message) {
+        Log.d(TAG, message);
+    }
     @Override
     public boolean onSupportNavigateUp() {
         NavController navController = Navigation.findNavController(this, R.id.nav_host_fragment_content_main);
@@ -361,16 +220,5 @@ public class MainActivity extends AppCompatActivity {
     public boolean onPrepareOptionsMenu(Menu menu) {
         menu.setGroupVisible(0, !hideOverflowMenu);
         return false;
-    }
-
-    public void onUpdateVoltageClick(View view) {
-        Log.d(TAG, String.valueOf(isConnected));
-        if (isConnected) {
-            Log.d(TAG, "start getting data yipiee");
-            if (ActivityCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
-                return;
-            }
-            gattIf.readCharacteristic(voltageChar);
-        }
     }
 }

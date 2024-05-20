@@ -8,12 +8,6 @@
             app:title="BMS MAC address"
             app:useSimpleSummaryProvider="true"
             />
-        <EditTextPreference
-            app:key="service_uuid"
-            app:title="BMS service UUID"
-            app:useSimpleSummaryProvider="true"
-
-            />
 
     </PreferenceCategory>
 
