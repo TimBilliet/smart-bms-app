@@ -86,10 +86,15 @@ public class BluetoothLeService extends Service {
                 if (ActivityCompat.checkSelfPermission(getApplicationContext(), android.Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
                     return;
                 }
+                Intent intent = new Intent("connection_state_change");
+                intent.putExtra("is_connected", true);
+                sendBroadcast(intent);
                 bluetoothGatt.discoverServices();
             } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
                 Log.i(TAG, "Disconnected from GATT server.");
-
+                Intent intent = new Intent("connection_state_change");
+                intent.putExtra("is_connected", false);
+                sendBroadcast(intent);
             }
         }
         @Override

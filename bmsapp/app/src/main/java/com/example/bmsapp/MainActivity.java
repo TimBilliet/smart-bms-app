@@ -12,8 +12,12 @@ import android.bluetooth.BluetoothGattCallback;
 import android.bluetooth.BluetoothGattCharacteristic;
 import android.bluetooth.BluetoothGattService;
 import android.bluetooth.BluetoothProfile;
+import android.content.ComponentName;
+import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.ServiceConnection;
+import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Bundle;
@@ -27,6 +31,7 @@ import androidx.annotation.NonNull;
 import androidx.annotation.RequiresApi;
 import androidx.appcompat.app.AppCompatActivity;
 
+import android.os.IBinder;
 import android.util.Log;
 
 import androidx.core.app.ActivityCompat;
@@ -37,6 +42,7 @@ import androidx.navigation.NavController;
 import androidx.navigation.Navigation;
 import androidx.navigation.ui.AppBarConfiguration;
 import androidx.navigation.ui.NavigationUI;
+import androidx.preference.PreferenceManager;
 
 import com.example.bmsapp.databinding.ActivityMainBinding;
 
@@ -50,6 +56,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
+import java.util.regex.Pattern;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -57,25 +64,18 @@ public class MainActivity extends AppCompatActivity {
     private ActivityMainBinding binding;
     public static final String TAG = "Mainactivity";
     private boolean hideOverflowMenu = false;
-    public BluetoothGatt bluetoothGatt;
+
     private BluetoothAdapter bluetoothAdapter;
     private ActivityResultLauncher<Intent> enableBtLauncher;
-    private MainActivity mainActivity = this;
+    private BluetoothLeService bluetoothLeService;
+
     private boolean isConnected = false;
     NavController navController;
-    private BluetoothGatt gattIf;
-    private BluetoothGattCharacteristic voltageChar;
-    private BluetoothGattCharacteristic cellVoltageChar;
-    private BluetoothGattCharacteristic currentChar;
-    private HomeFragment homeFragment;
-    private HomeFragment homeFrag;
-    private SettingsFragment settingsFragment;
-    private androidx.fragment.app
-            .FragmentManager mFragmentManager;
-    private androidx.fragment.app
-            .FragmentTransaction mFragmentTransaction;
+
+
+
     private static final int MY_PERMISSION_REQUEST_CODE = 420;
-    FrameLayout layout;
+    String storedMac;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -111,6 +111,11 @@ public class MainActivity extends AppCompatActivity {
             }
         });
         requestBluetoothEnable();
+        Intent gattServiceIntent = new Intent(this, BluetoothLeService.class);
+        this.bindService(gattServiceIntent, serviceConnection, Context.BIND_AUTO_CREATE);
+        SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(this);
+        storedMac = sharedPreferences.getString("mac_address", "default value");
+        logQuick(storedMac);
 
     }
 
@@ -120,6 +125,23 @@ public class MainActivity extends AppCompatActivity {
             enableBtLauncher.launch(enableBtIntent);
         }
     }
+    private final ServiceConnection serviceConnection = new ServiceConnection() {
+        @Override
+        public void onServiceConnected(ComponentName componentName, IBinder service) {
+            BluetoothLeService.LocalBinder binder = (BluetoothLeService.LocalBinder) service;
+            bluetoothLeService = binder.getService();
+            if (!bluetoothLeService.initialize()) {
+                Log.e("BLE", "Unable to initialize Bluetooth");
+                finish();
+            }
+            bluetoothLeService.connect(convertToUpperCase(storedMac));
+        }
+
+        @Override
+        public void onServiceDisconnected(ComponentName componentName) {
+            bluetoothLeService = null;
+        }
+    };
 
     @RequiresApi(api = Build.VERSION_CODES.S)
     private void requestBluetoothPermission() {
@@ -129,7 +151,11 @@ public class MainActivity extends AppCompatActivity {
             ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.BLUETOOTH_CONNECT}, MY_PERMISSION_REQUEST_CODE);
         }
     }
-
+    public boolean isValidMacAddress(String macAddress) {
+        final String MAC_ADDRESS_PATTERN = "^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$";
+        final Pattern pattern = Pattern.compile(MAC_ADDRESS_PATTERN);
+        return pattern.matcher(macAddress).matches();
+    }
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
                                            @NonNull int[] grantResults) {
@@ -150,7 +176,20 @@ public class MainActivity extends AppCompatActivity {
         }
         //}
     }
-
+    public static String convertToUpperCase(String address) {
+        if (address == null || address.isEmpty()) {
+            return address;
+        }
+        StringBuilder converted = new StringBuilder();
+        for (char c : address.toCharArray()) {
+            if (Character.isLetter(c)) {
+                converted.append(Character.toUpperCase(c));
+            } else {
+                converted.append(c);
+            }
+        }
+        return converted.toString();
+    }
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         getMenuInflater().inflate(R.menu.menu_main, menu);
