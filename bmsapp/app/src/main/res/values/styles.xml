@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.White" parent="android:Theme.Holo">
+        <item name="colorControlNormal">@color/white</item>
+    </style>
+</resources>

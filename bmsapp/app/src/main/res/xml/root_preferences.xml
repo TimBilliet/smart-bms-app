@@ -1,5 +1,14 @@
 <PreferenceScreen xmlns:app="http://schemas.android.com/apk/res-auto">
 
+    <PreferenceCategory app:title="General">
+
+        <EditTextPreference
+            app:key="update_interval"
+            app:title="App update interval(s)"
+            app:useSimpleSummaryProvider="true"
+            />
+
+    </PreferenceCategory>
     <PreferenceCategory app:title="BLE settings"
         app:icon="@drawable/baseline_bluetooth_24">
 

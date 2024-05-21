@@ -16,6 +16,9 @@ import android.os.Bundle;
 import android.os.IBinder;
 import android.util.Log;
 import android.view.LayoutInflater;
+import android.view.Menu;
+import android.view.MenuInflater;
+import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
@@ -38,8 +41,33 @@ public class HomeFragment extends Fragment{
     private BluetoothAdapter bluetoothAdapter;
     public static final String TAG = "Homefragment";
     private TextView textViewBatVoltage;
+
     private BluetoothLeService bluetoothLeService;
     private boolean isServiceBound = false;
+
+    @Override
+    public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
+        View view = inflater.inflate(R.layout.fragment_home, container, false);
+        logQuick("HOMEFRAG CREATED OMAGOSH");
+        textViewBatVoltage = view.findViewById(R.id.textViewBatVoltage);
+        /*
+        Button readButton = view.findViewById(R.id.buttonReadVoltage);
+        readButton.setOnClickListener(v -> {
+            if (isServiceBound && bluetoothLeService != null) {
+                BluetoothGattCharacteristic characteristic = getCharacteristics();
+                if (characteristic != null) {
+                    bluetoothLeService.readCharacteristic(characteristic);
+                } else {
+                    Log.w(TAG, "Characteristic x3001 not found");
+                }
+            }
+        });
+
+         */
+        Intent gattServiceIntent = new Intent(getActivity(), BluetoothLeService.class);
+        requireActivity().bindService(gattServiceIntent, serviceConnection, Context.BIND_AUTO_CREATE);
+        return view;
+    }
 
     private final BroadcastReceiver bleUpdateReceiver = new BroadcastReceiver() {
         @Override
@@ -56,9 +84,15 @@ public class HomeFragment extends Fragment{
         @Override
         public void onServiceConnected(ComponentName componentName, IBinder service) {
             BluetoothLeService.LocalBinder binder = (BluetoothLeService.LocalBinder) service;
-            bluetoothLeService = binder.getService();
+
+            MainActivity activity = (MainActivity) requireActivity();
+
+            if(activity.getBluetoothservice() != null) {
+                bluetoothLeService = activity.getBluetoothservice();
+            } else {
+                bluetoothLeService = binder.getService();
+            }
             isServiceBound = true;
-            Log.d(TAG, "Service connected");
         }
 
         @Override
@@ -68,6 +102,11 @@ public class HomeFragment extends Fragment{
             Log.d(TAG, "Service disconnected");
         }
     };
+    public void updatePackVoltage(float newValue) {
+        textViewBatVoltage.setText((int) newValue);
+        // Perform any additional actions, such as updating the UI
+        Log.d("HomeFragment", "Variable updated: " + newValue);
+    }
     public void logQuick(String message) {
         Log.d(TAG, message);
     }
@@ -80,32 +119,26 @@ public class HomeFragment extends Fragment{
         }
     }
     @Override
+    public boolean onOptionsItemSelected(@NonNull MenuItem item) {
+        int id = item.getItemId();
+        logQuick("pipiundkaka");
+        if (id == R.id.manual_refresh) {
+            // Handle the action here
+            return true;
+        }
+        return super.onOptionsItemSelected(item);
+    }
+    @Override
     public void onPause() {
         super.onPause();
         requireActivity().unregisterReceiver(bleUpdateReceiver);
     }
+
     @Override
-    public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
-        View view = inflater.inflate(R.layout.fragment_home, container, false);
-
-        textViewBatVoltage = view.findViewById(R.id.textViewBatVoltage);
-        Button readButton = view.findViewById(R.id.buttonReadVoltage);
-        readButton.setOnClickListener(v -> {
-            if (isServiceBound && bluetoothLeService != null) {
-                BluetoothGattCharacteristic characteristic = getCharacteristic();
-                if (characteristic != null) {
-                    bluetoothLeService.readCharacteristic(characteristic);
-                } else {
-                    Log.w(TAG, "Characteristic x3001 not found");
-                }
-            }
-        });
-        Intent gattServiceIntent = new Intent(getActivity(), BluetoothLeService.class);
-        requireActivity().bindService(gattServiceIntent, serviceConnection, Context.BIND_AUTO_CREATE);
-        logQuick("i am speed");
-        return view;
+    public void onCreateOptionsMenu(@NonNull Menu menu, @NonNull MenuInflater inflater) {
+        inflater.inflate(R.menu.menu_main, menu); // Inflate the menu resource.
+        super.onCreateOptionsMenu(menu, inflater);
     }
-
     public void onViewCreated(@NonNull View view, Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
     }
@@ -115,7 +148,7 @@ public class HomeFragment extends Fragment{
         super.onDestroyView();
         binding = null;
     }
-    private BluetoothGattCharacteristic getCharacteristic() {
+    public BluetoothGattCharacteristic getCharacteristics() {
         if (bluetoothLeService != null && bluetoothLeService.getBluetoothGatt() != null) {
             String shortUuid = "0x3000"; //bat voltage characteristic
             String shortchar = "0x3001";

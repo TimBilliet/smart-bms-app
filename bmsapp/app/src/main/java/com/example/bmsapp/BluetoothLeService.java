@@ -11,13 +11,18 @@ import android.bluetooth.BluetoothManager;
 import android.bluetooth.BluetoothProfile;
 import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.os.Binder;
+import android.os.Handler;
 import android.os.IBinder;
 import android.util.Log;
 
 import androidx.core.app.ActivityCompat;
+import androidx.preference.PreferenceManager;
 
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.UUID;
 
 public class BluetoothLeService extends Service {
@@ -25,6 +30,11 @@ public class BluetoothLeService extends Service {
     private BluetoothAdapter bluetoothAdapter;
     public static final String TAG = "BluetoothLeService";
     private BluetoothGatt bluetoothGatt;
+    private long updateInterval;
+    private Handler handler;
+    private Runnable runnable;
+    private float batVoltage;
+
     private final IBinder binder = new LocalBinder();
 
 
@@ -40,6 +50,7 @@ public class BluetoothLeService extends Service {
     }
 
     public boolean initialize() {
+        logQuick("bleservice init");
         if (bluetoothManager == null) {
             bluetoothManager = (BluetoothManager) getSystemService(Context.BLUETOOTH_SERVICE);
             if (bluetoothManager == null) {
@@ -53,10 +64,44 @@ public class BluetoothLeService extends Service {
             Log.e("BLE", "Unable to obtain a BluetoothAdapter.");
             return false;
         }
-
+        SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(this);
+        logQuick(sharedPreferences.getString("update_interval", "1"));
+        //updateInterval =  (long)(1000L * Float.parseFloat(sharedPreferences.getString("update_interval", "default value")));
+        handler = new Handler();
+        runnable = new Runnable() {
+            @Override
+            public void run() {
+                logQuick("Timer");
+                logQuick(String.valueOf(updateInterval));
+                BluetoothGattCharacteristic characteristic = getCharacteristic();
+                if (characteristic != null) {
+                    readCharacteristic(characteristic);
+                } else {
+                    Log.w(TAG, "Characteristic x3001 not found");
+                }
+                handler.postDelayed(this, updateInterval);
+            }
+        };
         return true;
     }
+    public BluetoothGattCharacteristic getCharacteristic() {
+        String shortUuid = "0x3000"; //bat voltage characteristic
+        String shortchar = "0x3001";
+        // Convert the 16-bit UUID to 128-bit format
+        String longUuid = shortUuid.replace("0x", "") + "-0000-1000-8000-00805F9B34FB";
+        String longUuidChar = shortchar.replace("0x", "") + "-0000-1000-8000-00805F9B34FB";
+        // Create the UUID object
+        UUID serviceUuid = UUID.fromString(longUuid);
+        UUID charUuid = UUID.fromString(longUuidChar);
+        BluetoothGattService service = getBluetoothGatt().getService(serviceUuid);
+        if (service != null) {
+            return service.getCharacteristic(charUuid);
+        } else {
+            logQuick("service is null");
+        }
 
+        return null;
+    }
     public boolean connect(final String address) {
         if (bluetoothAdapter == null || address == null) {
             Log.w(TAG, "BluetoothAdapter not initialized or unspecified address.");
@@ -74,6 +119,25 @@ public class BluetoothLeService extends Service {
         }
         bluetoothGatt = device.connectGatt(this, false, gattCallback);
         return true;
+    }
+    public void runUpdateTimer() {
+        SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(this);
+        updateInterval =(long)( 1000L * Float.parseFloat(sharedPreferences.getString("update_interval", "1")));
+        if(updateInterval!= 0) {
+            handler.postDelayed(runnable, updateInterval);
+        }
+    }
+    public void updateInterval(float interval) {
+        logQuick("updateinterval ");
+        if(interval > 0) {
+            updateInterval = (long) (interval * 1000L);
+            //Restart timer
+            logQuick(String.valueOf(updateInterval));
+            handler.removeCallbacks(runnable);
+            handler.postDelayed(runnable, updateInterval);
+        } else {
+            handler.removeCallbacks(runnable);
+        }
     }
     public void logQuick(String message) {
         Log.d(TAG, message);
@@ -93,6 +157,7 @@ public class BluetoothLeService extends Service {
             } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
                 Log.i(TAG, "Disconnected from GATT server.");
                 Intent intent = new Intent("connection_state_change");
+                handler.removeCallbacks(runnable);//stop timer
                 intent.putExtra("is_connected", false);
                 sendBroadcast(intent);
             }
@@ -106,6 +171,7 @@ public class BluetoothLeService extends Service {
                 if (uuid.equals(characteristic.getUuid())) {
                     byte[] data = characteristic.getValue();
                     int batVoltage = ((data[0] & 0xFF) << 8) | (data[1] & 0xFF);
+
                     logQuick(String.valueOf(batVoltage));
                     Intent intent = new Intent("BLE_DATA");
                     intent.putExtra("BLE_DATA", String.valueOf(batVoltage));
@@ -118,6 +184,7 @@ public class BluetoothLeService extends Service {
     public BluetoothGatt getBluetoothGatt() {
         return bluetoothGatt;
     }
+
 
     public void readCharacteristic(BluetoothGattCharacteristic characteristic) {
         if (bluetoothAdapter == null || bluetoothGatt == null) {

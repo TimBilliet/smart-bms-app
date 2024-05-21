@@ -47,6 +47,7 @@ import androidx.preference.PreferenceManager;
 import com.example.bmsapp.databinding.ActivityMainBinding;
 
 import android.view.Menu;
+import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
@@ -69,7 +70,6 @@ public class MainActivity extends AppCompatActivity {
     private ActivityResultLauncher<Intent> enableBtLauncher;
     private BluetoothLeService bluetoothLeService;
 
-    private boolean isConnected = false;
     NavController navController;
 
 
@@ -117,6 +117,15 @@ public class MainActivity extends AppCompatActivity {
         storedMac = sharedPreferences.getString("mac_address", "default value");
         logQuick(storedMac);
 
+        /*
+        if (savedInstanceState == null) {
+            HomeFragment homeFragment = new HomeFragment();
+            getSupportFragmentManager().beginTransaction()
+                    .replace(R.id.home_frag, homeFragment)
+                    .commit();
+        }
+
+         */
     }
 
     private void requestBluetoothEnable() {
@@ -125,6 +134,9 @@ public class MainActivity extends AppCompatActivity {
             enableBtLauncher.launch(enableBtIntent);
         }
     }
+    public void setBluetoothLeService(BluetoothLeService bluetoothLeService) {
+        this.bluetoothLeService = bluetoothLeService;
+    }
     private final ServiceConnection serviceConnection = new ServiceConnection() {
         @Override
         public void onServiceConnected(ComponentName componentName, IBinder service) {
@@ -132,9 +144,23 @@ public class MainActivity extends AppCompatActivity {
             bluetoothLeService = binder.getService();
             if (!bluetoothLeService.initialize()) {
                 Log.e("BLE", "Unable to initialize Bluetooth");
+                showDialog("Unable to initialize Bluetooth");
                 finish();
             }
-            bluetoothLeService.connect(convertToUpperCase(storedMac));
+            bluetoothLeService.runUpdateTimer();
+            boolean connectStatus = bluetoothLeService.connect(convertToUpperCase(storedMac));
+            /*
+            SettingsFragment settingsFragment = (SettingsFragment) getSupportFragmentManager().findFragmentByTag("Settingsfragment");
+            if(settingsFragment == null) {
+                logQuick("settingsfrag is null");
+            } else {
+                logQuick("settingsfrag NOT null");
+            }
+
+             */
+            if(!connectStatus) {
+                showDialog("Connection failed");
+            }
         }
 
         @Override
@@ -190,12 +216,23 @@ public class MainActivity extends AppCompatActivity {
         }
         return converted.toString();
     }
+    public BluetoothLeService getBluetoothservice() {
+        return bluetoothLeService;
+    }
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         getMenuInflater().inflate(R.menu.menu_main, menu);
         return true;
     }
+    private void showDialog(String message) {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setMessage(message)
+                .setPositiveButton("OK", (dialog, which) -> {
 
+                });
+        AlertDialog dialog = builder.create();
+        dialog.show();
+    }
 
     @SuppressLint("RestrictedApi")
     @Override
@@ -216,6 +253,7 @@ public class MainActivity extends AppCompatActivity {
     public boolean onOptionsItemSelected(MenuItem item) {
         // Handle action bar item clicks here.
         int id = item.getItemId();
+
         if (id == R.id.action_about) {
             navController.navigate(R.id.AboutFragment);
             hideOverflowMenu = true;
@@ -231,6 +269,17 @@ public class MainActivity extends AppCompatActivity {
             hideOverflowMenu = false;
             supportInvalidateOptionsMenu();
             navController.navigate(R.id.HomeFragment);
+        } else if(id == R.id.manual_refresh){
+            logQuick("refresh press");
+            if(bluetoothLeService != null) {
+                BluetoothGattCharacteristic characteristic = bluetoothLeService.getCharacteristic();
+                if (characteristic != null) {
+                    logQuick("bluetooth characteristic read from mainactivity");
+                    bluetoothLeService.readCharacteristic(characteristic);
+                } else {
+                    logQuick("Characteristic x3001 not found");
+                }
+            }
         }
         return super.onOptionsItemSelected(item);
     }

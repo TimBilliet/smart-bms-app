@@ -34,13 +34,21 @@ public class SettingsFragment extends PreferenceFragmentCompat {
     public static final String TAG = "Settingsfragment";
     private static final Pattern pattern = Pattern.compile(MAC_ADDRESS_PATTERN);
     private String macAddress;
+    private float updateInterval;
     private boolean isConnected = false;
     private EditTextPreference macAddressPreference;
+    private EditTextPreference appUpdateIntervalPreference;
     private BluetoothLeService bluetoothLeService;
 
 
     @Override
     public void onAttach(@NonNull Context context) {
+
+        logQuick("ATTACHED TO SETTINGSFRAG");
+        MainActivity activity = (MainActivity)requireActivity();
+        if(activity.getBluetoothservice() != null) {
+            bluetoothLeService = activity.getBluetoothservice();
+        }
         super.onAttach(context);
     }
 
@@ -48,10 +56,10 @@ public class SettingsFragment extends PreferenceFragmentCompat {
     public void onCreatePreferences(Bundle savedInstanceState, String rootKey) {
         setPreferencesFromResource(R.xml.root_preferences, rootKey);
         macAddressPreference = findPreference("mac_address");
+        appUpdateIntervalPreference = findPreference("update_interval");
         if (macAddressPreference != null) {
             macAddressPreference.setPositiveButtonText("Connect");
-            macAddressPreference.setOnBindEditTextListener(
-                    editText -> editText.setHint("AA:AA:AA:AA:AA:AA"));
+            macAddressPreference.setOnBindEditTextListener(editText -> editText.setHint("AA:AA:AA:AA:AA:AA"));
             macAddressPreference.setOnPreferenceChangeListener((preference, macAddress) -> {
                 if (!isValidMacAddress((String) macAddress)) {
                     showDialog("Invalid MAC address");
@@ -59,17 +67,39 @@ public class SettingsFragment extends PreferenceFragmentCompat {
                     this.macAddress = convertToUpperCase((String) macAddress);
                     Intent gattServiceIntent = new Intent(getActivity(), BluetoothLeService.class);
                     requireActivity().bindService(gattServiceIntent, serviceConnection, Context.BIND_AUTO_CREATE);
-
+                    SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(requireActivity());
+                    updateInterval = Float.parseFloat(sharedPreferences.getString("update_interval", "1"));
                 }
                 return true;
             });
         }
+        if(appUpdateIntervalPreference != null) {
+            appUpdateIntervalPreference.setPositiveButtonText("OK");
+            appUpdateIntervalPreference.setOnPreferenceChangeListener((preference, interval) -> {
+                if(isValidDelay((String) interval)) {
+                    if(Float.parseFloat((String) interval) >= 0) {
+                        updateInterval = Float.parseFloat((String) interval);
+                        SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(requireActivity());
+                        SharedPreferences.Editor editor = sharedPreferences.edit();
+                        editor.putString("update_interval", (String) interval);
+                        editor.apply();
+
+                        bluetoothLeService.updateInterval(updateInterval);
+                    }
+                } else {
+                    showDialog("Invalid input\nMaximum 3 digits after the decimal point");
+                }
+
+                return true;
+            });
+        }
     }
+
     private BroadcastReceiver connectionStateReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
             // Handle the connection state change here
-            boolean isConnected = intent.getBooleanExtra("is_connected", false);
+            isConnected = intent.getBooleanExtra("is_connected", false);
             // Update UI or preferences based on the connection state
             if(isConnected) {
                 logQuick("CONNECTED OMAGOSH IN SETTINGSFRAG");
@@ -91,16 +121,32 @@ public class SettingsFragment extends PreferenceFragmentCompat {
         final Pattern pattern = Pattern.compile(MAC_ADDRESS_PATTERN);
         return pattern.matcher(macAddress).matches();
     }
+    private static boolean isValidDelay(String interval) {
+        try {
+            Float.parseFloat(interval);
+        } catch (NumberFormatException e) {
+            return false; // Not a valid float
+        }
+
+        // Use a regular expression to ensure it has at most three digits after the decimal point
+        String regex = "^\\d+\\.\\d{1,3}$|^\\d+$";
+        return interval.matches(regex);
+    }
     private final ServiceConnection serviceConnection = new ServiceConnection() {
         @Override
         public void onServiceConnected(ComponentName componentName, IBinder service) {
             BluetoothLeService.LocalBinder binder = (BluetoothLeService.LocalBinder) service;
             bluetoothLeService = binder.getService();
+            MainActivity activity = (MainActivity) requireActivity();
+            if(activity.getBluetoothservice() == null) {
+                activity.setBluetoothLeService(bluetoothLeService);
+            }
             if (!bluetoothLeService.initialize()) {
                 Log.e("BLE", "Unable to initialize Bluetooth");
                 getActivity().finish();
             }
-
+            bluetoothLeService.runUpdateTimer();
+            logQuick(String.valueOf(updateInterval));
             boolean connectStatus = bluetoothLeService.connect(macAddress);
 
             if(!connectStatus) {

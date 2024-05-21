@@ -1,7 +1,7 @@
 <resources>
     <string name="app_name">Smart BMS app</string>
     <!-- Strings used for fragments for navigation -->
-    <string name="home_fragment_label">Home</string>
+    <string name="home_fragment_label" />
 
 
     <string name="action_about">About</string>
@@ -26,4 +26,6 @@
     <string name="attachment_summary_on">Automatically download attachments for incoming emails
     </string>
     <string name="attachment_summary_off">Only download attachments when manually requested</string>
+    <string name="manual_refresh">Manual refresh</string>
+    <string name="refresh">refresh</string>
 </resources>
