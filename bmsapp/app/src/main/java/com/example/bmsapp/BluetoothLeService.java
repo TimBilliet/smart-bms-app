@@ -32,7 +32,7 @@ public class BluetoothLeService extends Service {
     private BluetoothAdapter bluetoothAdapter;
     public static final String TAG = "BluetoothLeService";
     private BluetoothGatt bluetoothGatt;
-    private long updateInterval;
+    private long updateInterval = 0;
     private Handler handler;
     private Runnable runnable;
     private float batVoltage;
@@ -132,7 +132,12 @@ public class BluetoothLeService extends Service {
     }
     public void runUpdateTimer() {
         SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(this);
-        updateInterval =(long)( 1000L * Float.parseFloat(sharedPreferences.getString("update_interval", "0")));
+        try {
+            updateInterval =(long)( 1000L * Float.parseFloat(sharedPreferences.getString("update_interval", "0")));
+
+        } catch (Exception e) {
+
+        }
         //if(updateInterval!= 0) {
             handler.postDelayed(runnable, updateInterval);
        // }

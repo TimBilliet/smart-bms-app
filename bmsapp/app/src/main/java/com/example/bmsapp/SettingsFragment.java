@@ -64,17 +64,18 @@ public class SettingsFragment extends PreferenceFragmentCompat {
         setPreferencesFromResource(R.xml.root_preferences, rootKey);
         macAddressPreference = findPreference("mac_address");
         appUpdateIntervalPreference = findPreference("update_interval");
+        sharedPreferences = PreferenceManager.getDefaultSharedPreferences(requireActivity());
         if (macAddressPreference != null) {
             macAddressPreference.setPositiveButtonText("Connect");
             macAddressPreference.setOnBindEditTextListener(editText -> editText.setHint("AA:AA:AA:AA:AA:AA"));
             macAddressPreference.setOnPreferenceChangeListener((preference, macAddress) -> {
+
                 if (!isValidMacAddress((String) macAddress)) {
                     showDialog("Invalid MAC address");
                 } else {
                     this.macAddress = convertToUpperCase((String) macAddress);
                     Intent gattServiceIntent = new Intent(getActivity(), BluetoothLeService.class);
                     requireActivity().bindService(gattServiceIntent, serviceConnection, Context.BIND_AUTO_CREATE);
-                    SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(requireActivity());
                     updateInterval = Float.parseFloat(sharedPreferences.getString("update_interval", "1"));
                 }
                 return true;
@@ -86,7 +87,8 @@ public class SettingsFragment extends PreferenceFragmentCompat {
                 if(isValidDelay((String) interval)) {
                     if(Float.parseFloat((String) interval) >= 0) {
                         updateInterval = Float.parseFloat((String) interval);
-                        SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(requireActivity());
+                        appUpdateIntervalPreference.setText((String) interval);
+                        //sharedPreferences = PreferenceManager.getDefaultSharedPreferences(requireActivity());
                         SharedPreferences.Editor editor = sharedPreferences.edit();
                         editor.putString("update_interval", (String) interval);
                         editor.apply();
@@ -100,7 +102,6 @@ public class SettingsFragment extends PreferenceFragmentCompat {
                 return true;
             });
         }
-
     }
 
     private BroadcastReceiver connectionStateReceiver = new BroadcastReceiver() {
@@ -111,6 +112,7 @@ public class SettingsFragment extends PreferenceFragmentCompat {
             isConnected = intent.getBooleanExtra("is_connected", false);
             // Update UI or preferences based on the connection state
             if(isConnected) {
+                bluetoothLeService.runUpdateTimer();
                 //Save mac address so it can be used later to automatically connect
                 sharedPreferences = PreferenceManager.getDefaultSharedPreferences(requireActivity());
                 SharedPreferences.Editor editor = sharedPreferences.edit();
@@ -118,8 +120,6 @@ public class SettingsFragment extends PreferenceFragmentCompat {
                 logQuick(macAddress);
                 editor.apply();
                 showDialog("Connected to: " + macAddress);
-            } else {
-
             }
         }
     };
@@ -142,6 +142,7 @@ public class SettingsFragment extends PreferenceFragmentCompat {
     private final ServiceConnection serviceConnection = new ServiceConnection() {
         @Override
         public void onServiceConnected(ComponentName componentName, IBinder service) {
+            logQuick("fat cownk");
             BluetoothLeService.LocalBinder binder = (BluetoothLeService.LocalBinder) service;
             bluetoothLeService = binder.getService();
             MainActivity activity = (MainActivity) requireActivity();
@@ -150,9 +151,9 @@ public class SettingsFragment extends PreferenceFragmentCompat {
             }
             if (!bluetoothLeService.initialize()) {
                 Log.e("BLE", "Unable to initialize Bluetooth");
-                getActivity().finish();
+                requireActivity().finish();
             }
-            bluetoothLeService.runUpdateTimer();
+
             logQuick(String.valueOf(updateInterval));
             bluetoothLeService.connect(macAddress);
         }
