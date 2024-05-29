@@ -20,19 +20,44 @@
 
     </PreferenceCategory>
 
-    <PreferenceCategory app:title="Parameters"
+    <PreferenceCategory app:title="BMS parameters"
         app:key="param_category">
+        <EditTextPreference
+            app:key="shunt_value"
+            app:title="Current shunt value(mΩ)"
+            app:useSimpleSummaryProvider="true"
+            />
+        <EditTextPreference
+            app:key="overcharge_current"
+            app:title="Overcharge current protection(mA)"
+            app:useSimpleSummaryProvider="true"
+            />
+        <EditTextPreference
+            app:key="undervolt"
+            app:title="Undervoltage level(mV)"
+            app:useSimpleSummaryProvider="true"
+            />
+        <EditTextPreference
+            app:key="overvolt"
+            app:title="Overvoltage protection(mV)"
+            app:useSimpleSummaryProvider="true"
+            />
+        <EditTextPreference
+            app:key="min_balance_voltage"
+            app:title="Minimum balance voltage(mV)"
+            app:useSimpleSummaryProvider="true"
+            />
+        <EditTextPreference
+            app:key="max_cell_voltage_diff"
+            app:title="Max cell voltage differential(mV)"
+            app:useSimpleSummaryProvider="true"
+            />
+        <EditTextPreference
+            app:key="idle_current_threshold"
+            app:title="Idle current threshold(mA)"
+            app:useSimpleSummaryProvider="true"
+            />
 
-        <SwitchPreferenceCompat
-            app:key="param"
-            app:title="@string/sync_title" />
-
-        <SwitchPreferenceCompat
-            app:dependency="param"
-            app:key="attachment"
-            app:summaryOff="@string/attachment_summary_off"
-            app:summaryOn="@string/attachment_summary_on"
-            app:title="@string/attachment_title" />
 
     </PreferenceCategory>
 
