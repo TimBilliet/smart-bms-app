@@ -12,13 +12,19 @@ import android.bluetooth.BluetoothGattCallback;
 import android.bluetooth.BluetoothGattCharacteristic;
 import android.bluetooth.BluetoothGattService;
 import android.bluetooth.BluetoothProfile;
+import android.content.BroadcastReceiver;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.ServiceConnection;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
+import android.graphics.Color;
+import android.graphics.PorterDuff;
+import android.graphics.drawable.Drawable;
+import android.graphics.drawable.DrawableContainer;
 import android.os.Build;
 import android.os.Bundle;
 import android.Manifest;
@@ -32,12 +38,16 @@ import androidx.annotation.RequiresApi;
 import androidx.appcompat.app.AppCompatActivity;
 
 import android.os.IBinder;
+import android.text.SpannableString;
+import android.text.style.ForegroundColorSpan;
 import android.util.Log;
 
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
+import androidx.core.graphics.drawable.DrawableCompat;
 import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentManager;
+import androidx.lifecycle.ViewModelProvider;
 import androidx.navigation.NavController;
 import androidx.navigation.Navigation;
 import androidx.navigation.ui.AppBarConfiguration;
@@ -45,13 +55,18 @@ import androidx.navigation.ui.NavigationUI;
 import androidx.preference.PreferenceManager;
 
 import com.example.bmsapp.databinding.ActivityMainBinding;
+import com.google.android.material.appbar.AppBarLayout;
 
+import android.view.Gravity;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
 import android.widget.FrameLayout;
+import android.widget.ImageView;
+import android.widget.TextView;
+import android.widget.Toast;
 
 import java.nio.charset.StandardCharsets;
 import java.util.List;
@@ -69,18 +84,20 @@ public class MainActivity extends AppCompatActivity {
     private BluetoothAdapter bluetoothAdapter;
     private ActivityResultLauncher<Intent> enableBtLauncher;
     private BluetoothLeService bluetoothLeService;
-
+    private MainActivity thisActivity;
     NavController navController;
-
-
-
+    private boolean isConnected = false;
+    private MenuItem connectionIcon;
+    private Menu menu;
+    private MenuItem bleStatusMenuItem;
+    int storedIconColour;
     private static final int MY_PERMISSION_REQUEST_CODE = 420;
     String storedMac;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-
+        thisActivity = this;
         binding = ActivityMainBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
 
@@ -88,7 +105,6 @@ public class MainActivity extends AppCompatActivity {
         navController = Navigation.findNavController(this, R.id.nav_host_fragment_content_main);
         appBarConfiguration = new AppBarConfiguration.Builder(navController.getGraph()).build();
         NavigationUI.setupActionBarWithNavController(this, navController, appBarConfiguration);
-
         bluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
         if (bluetoothAdapter == null) {
             new AlertDialog.Builder(this)
@@ -116,18 +132,16 @@ public class MainActivity extends AppCompatActivity {
         SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(this);
         storedMac = sharedPreferences.getString("mac_address", "default value");
         logQuick(storedMac);
-
-        /*
-        if (savedInstanceState == null) {
-            HomeFragment homeFragment = new HomeFragment();
-            getSupportFragmentManager().beginTransaction()
-                    .replace(R.id.home_frag, homeFragment)
-                    .commit();
-        }
-
-         */
     }
-
+    private void updateBleStatusIcon(boolean isConnected) {
+        logQuick("isconnected");
+        if (bleStatusMenuItem != null) {
+            Drawable icon = DrawableCompat.wrap(bleStatusMenuItem.getIcon()).mutate();
+            int color = isConnected ? R.color.connected_color : R.color.disconnected_color;
+            DrawableCompat.setTint(icon, getResources().getColor(color));
+            bleStatusMenuItem.setIcon(icon);
+        }
+    }
     private void requestBluetoothEnable() {
         if (!bluetoothAdapter.isEnabled()) {
             Intent enableBtIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
@@ -148,19 +162,8 @@ public class MainActivity extends AppCompatActivity {
                 finish();
             }
             bluetoothLeService.runUpdateTimer();
-            boolean connectStatus = bluetoothLeService.connect(convertToUpperCase(storedMac));
-            /*
-            SettingsFragment settingsFragment = (SettingsFragment) getSupportFragmentManager().findFragmentByTag("Settingsfragment");
-            if(settingsFragment == null) {
-                logQuick("settingsfrag is null");
-            } else {
-                logQuick("settingsfrag NOT null");
-            }
+            bluetoothLeService.connect(convertToUpperCase(storedMac));
 
-             */
-            if(!connectStatus) {
-                showDialog("Connection failed");
-            }
         }
 
         @Override
@@ -222,6 +225,7 @@ public class MainActivity extends AppCompatActivity {
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         getMenuInflater().inflate(R.menu.menu_main, menu);
+        //this.menu = menu;
         return true;
     }
     private void showDialog(String message) {
@@ -242,6 +246,7 @@ public class MainActivity extends AppCompatActivity {
             hideOverflowMenu = false;
             supportInvalidateOptionsMenu();
             navController.navigate(R.id.HomeFragment);
+
         } else if(navController.getCurrentDestination().getLabel().toString().equals("Home")) {
             moveTaskToBack(true);
         } else {
@@ -249,6 +254,36 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    private BroadcastReceiver connectionStateReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            Log.i("main","received connection changed status in mainactivity");
+
+            // Handle the connection state change here
+            isConnected = intent.getBooleanExtra("is_connected", false);
+            // Update connection with the correct colour
+            if(isConnected) {
+                Toast.makeText(getApplicationContext(), "Connected.", Toast.LENGTH_LONG).show();
+            } else {
+             //   Toast.makeText(getApplicationContext(), "Disconnected.", Toast.LENGTH_LONG).show();
+            }
+        }
+    };
+
+    @Override
+    public void onResume() {
+        super.onResume();
+        IntentFilter intentFilter = new IntentFilter("connection_state_change");
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            registerReceiver(connectionStateReceiver, intentFilter, Context.RECEIVER_NOT_EXPORTED);
+        }
+    }
+
+    @Override
+    public void onPause() {
+        super.onPause();
+        unregisterReceiver(connectionStateReceiver);
+    }
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         // Handle action bar item clicks here.
@@ -269,6 +304,7 @@ public class MainActivity extends AppCompatActivity {
             hideOverflowMenu = false;
             supportInvalidateOptionsMenu();
             navController.navigate(R.id.HomeFragment);
+
         } else if(id == R.id.manual_refresh){
             logQuick("refresh press");
             if(bluetoothLeService != null) {
@@ -307,6 +343,11 @@ public class MainActivity extends AppCompatActivity {
     @Override
     public boolean onPrepareOptionsMenu(Menu menu) {
         menu.setGroupVisible(0, !hideOverflowMenu);
+        MenuItem item1 = menu.findItem(R.id.action_settings);
+        MenuItem item2 = menu.findItem(R.id.action_about);
+        item1.setVisible(!hideOverflowMenu);
+        item2.setVisible(!hideOverflowMenu);
+        super.onPrepareOptionsMenu(menu);
         return false;
     }
 }

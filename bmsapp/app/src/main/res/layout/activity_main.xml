@@ -15,12 +15,14 @@
         >
 
         <com.google.android.material.appbar.MaterialToolbar
+
             android:id="@+id/toolbar"
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
-
+            app:title=""
             android:background="#1E90EA"
             app:titleTextColor="@android:color/white" />
+        <!-- very scuffed -->
 
     </com.google.android.material.appbar.AppBarLayout>
 

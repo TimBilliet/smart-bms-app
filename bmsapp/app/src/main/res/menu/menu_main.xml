@@ -1,13 +1,15 @@
 <menu xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
-    tools:context="com.example.bmsapp.MainActivity">
+    tools:context="com.example.bmsapp.MainActivity"
+    android:id="@+id/main_menu">
 
     <item
         android:id="@+id/manual_refresh"
         android:icon="@drawable/baseline_refresh_24"
         android:title="@string/refresh"
-        app:showAsAction="ifRoom" />
+        app:showAsAction="always" />
+    <group android:id="@+id/group_dropdown">
     <item
         android:id="@+id/action_settings"
         android:orderInCategory="100"
@@ -18,5 +20,5 @@
         android:orderInCategory="100"
         android:title="@string/action_about"
         app:showAsAction="never" />
-
+    </group>
 </menu>

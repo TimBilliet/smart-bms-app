@@ -8,7 +8,7 @@
     <fragment
         android:id="@+id/HomeFragment"
         android:name="com.example.bmsapp.HomeFragment"
-        android:label="@string/home_fragment_label"
+        android:label=""
         tools:layout="@layout/fragment_home">
 
         <action

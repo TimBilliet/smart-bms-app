@@ -11,12 +11,18 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.ServiceConnection;
 import android.content.SharedPreferences;
+import android.graphics.Color;
+import android.graphics.PorterDuff;
+import android.graphics.drawable.Drawable;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.util.Log;
+import android.view.Menu;
+import android.widget.Toast;
 
 import androidx.annotation.NonNull;
+import androidx.lifecycle.ViewModelProvider;
 import androidx.preference.EditTextPreference;
 import androidx.preference.PreferenceCategory;
 import androidx.preference.PreferenceFragmentCompat;
@@ -39,15 +45,16 @@ public class SettingsFragment extends PreferenceFragmentCompat {
     private EditTextPreference macAddressPreference;
     private EditTextPreference appUpdateIntervalPreference;
     private BluetoothLeService bluetoothLeService;
-
+    private MainActivity mainActivity;
+    private SharedPreferences sharedPreferences;
 
     @Override
     public void onAttach(@NonNull Context context) {
 
         logQuick("ATTACHED TO SETTINGSFRAG");
-        MainActivity activity = (MainActivity)requireActivity();
-        if(activity.getBluetoothservice() != null) {
-            bluetoothLeService = activity.getBluetoothservice();
+        mainActivity = (MainActivity)requireActivity();
+        if(mainActivity.getBluetoothservice() != null) {
+            bluetoothLeService = mainActivity.getBluetoothservice();
         }
         super.onAttach(context);
     }
@@ -83,7 +90,7 @@ public class SettingsFragment extends PreferenceFragmentCompat {
                         SharedPreferences.Editor editor = sharedPreferences.edit();
                         editor.putString("update_interval", (String) interval);
                         editor.apply();
-
+                        logQuick( "is connected: "+isConnected);
                         bluetoothLeService.updateInterval(updateInterval);
                     }
                 } else {
@@ -93,26 +100,26 @@ public class SettingsFragment extends PreferenceFragmentCompat {
                 return true;
             });
         }
+
     }
 
     private BroadcastReceiver connectionStateReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
+            logQuick("received connection changed status in settingsfrag");
             // Handle the connection state change here
             isConnected = intent.getBooleanExtra("is_connected", false);
             // Update UI or preferences based on the connection state
             if(isConnected) {
-                logQuick("CONNECTED OMAGOSH IN SETTINGSFRAG");
                 //Save mac address so it can be used later to automatically connect
-                SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(requireActivity());
+                sharedPreferences = PreferenceManager.getDefaultSharedPreferences(requireActivity());
                 SharedPreferences.Editor editor = sharedPreferences.edit();
                 editor.putString("mac_address", macAddress);
                 logQuick(macAddress);
                 editor.apply();
                 showDialog("Connected to: " + macAddress);
             } else {
-                logQuick("DISCONNECTED OMAGOSH IN SETTINGSFRAG");
-                showDialog("Disconnected from: " + macAddress);
+
             }
         }
     };
@@ -147,11 +154,7 @@ public class SettingsFragment extends PreferenceFragmentCompat {
             }
             bluetoothLeService.runUpdateTimer();
             logQuick(String.valueOf(updateInterval));
-            boolean connectStatus = bluetoothLeService.connect(macAddress);
-
-            if(!connectStatus) {
-                showDialog("Connection failed");
-            }
+            bluetoothLeService.connect(macAddress);
         }
 
         @Override
@@ -173,6 +176,7 @@ public class SettingsFragment extends PreferenceFragmentCompat {
         super.onPause();
         requireActivity().unregisterReceiver(connectionStateReceiver);
     }
+
     public static boolean isValidUUID(String input) {
         if (input == null || input.length() != 6) {
             return false;
