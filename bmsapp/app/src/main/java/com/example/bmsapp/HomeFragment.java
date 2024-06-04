@@ -259,7 +259,8 @@ public class HomeFragment extends Fragment{
         if(activity.getBluetoothservice() != null) {
             bluetoothLeService = activity.getBluetoothservice();
             logQuick("bluetooth characteristic read from homefrag");
-            bluetoothLeService.readAllCharacteristics();
+            //bluetoothLeService.readAllCharacteristics();
+            bluetoothLeService.readCharacteristicsForHomefragment();
         }
     }
     @Override

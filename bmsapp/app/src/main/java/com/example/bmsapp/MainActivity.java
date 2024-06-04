@@ -302,7 +302,8 @@ public class MainActivity extends AppCompatActivity {
             logQuick("refresh press");
             if(bluetoothLeService != null && isConnected) {
                 logQuick("bluetooth characteristic read from mainactivity");
-                bluetoothLeService.readAllCharacteristics();
+                //bluetoothLeService.readAllCharacteristics();
+                bluetoothLeService.readCharacteristicsForHomefragment();
             } else {
                 Toast.makeText(getApplicationContext(), "Not connected.", Toast.LENGTH_LONG).show();
             }
@@ -328,11 +329,10 @@ public class MainActivity extends AppCompatActivity {
     }
     private void showPowerOffDialog() {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setMessage("Are you sure you want to power off the bms?");
-        builder.setPositiveButton("Yes", (dialog, which) -> shutdownBms());
-        builder.setNegativeButton("No", (dialog, which) -> {
-
-        });
+        builder.setMessage("Which action do you want to perform?");
+        builder.setNeutralButton("cancel", null);
+        builder.setPositiveButton("Shutdown", (dialog, which) -> shutdownBms());
+        builder.setNegativeButton("restart", (dialog, which) -> restartBms());
         builder.create();
         builder.show();
 
@@ -341,6 +341,9 @@ public class MainActivity extends AppCompatActivity {
         byte[] value = {0};
         bluetoothLeService.writeCharacteristic("4007", value);
         isConnected = false;
+    }
+    private void restartBms() {
+        //TODO, shutdown bms ic and then esp_restart
     }
    // private void enableBalancing() {
 

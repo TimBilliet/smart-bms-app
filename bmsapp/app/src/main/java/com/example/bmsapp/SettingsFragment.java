@@ -73,6 +73,7 @@ public class SettingsFragment extends PreferenceFragmentCompat {
         maximumCellVoltageDifferencePreference = findPreference("max_cell_voltage_diff");
         idleCurrentPreference = findPreference("idle_current_threshold");
         sharedPreferences = PreferenceManager.getDefaultSharedPreferences(requireActivity());
+
         if (macAddressPreference != null) {
             macAddressPreference.setPositiveButtonText("Connect");
             macAddressPreference.setOnBindEditTextListener(editText -> editText.setHint("AA:AA:AA:AA:AA:AA"));
@@ -111,7 +112,7 @@ public class SettingsFragment extends PreferenceFragmentCompat {
         if(onlyBalanceWhileChargingPreference != null) {
             onlyBalanceWhileChargingPreference.setOnPreferenceChangeListener(((preference, toggle) -> {
                 if(bluetoothLeService != null) {
-                    byte[] data = {0};
+                    byte[] data = new byte[1];
                     if ((boolean) toggle) {
                         logQuick("ON ON WE OIN");
                         data[0] = 1;
@@ -119,12 +120,43 @@ public class SettingsFragment extends PreferenceFragmentCompat {
                         logQuick("we off");
                     }
                    bluetoothLeService.writeCharacteristic("4008", data);
-
                 }
                 return true;
             }));
         }
-        bluetoothLeService.readAllCharacteristics();
+        if(shuntResistorPreference != null) {
+            shuntResistorPreference.setOnPreferenceChangeListener(((preference, resistance) -> {
+                if(bluetoothLeService != null) {
+                    if(((String)resistance).matches("\\d+")) {
+                        byte[] data = new byte[1];
+                        data[0] = Byte.parseByte((String) resistance);
+                        bluetoothLeService.writeCharacteristic("4001", data);
+                    } else {
+                        showDialog("Invalid input");
+                    }
+                }
+
+                return true;
+            }));
+        }
+        if(overChargeCurrentPreference != null) {
+            overChargeCurrentPreference.setOnPreferenceChangeListener(((preference, current) -> {
+                if(bluetoothLeService != null) {
+                    if(((String)current).matches("\\d+") && ((String)current).length() <= 5) {
+                        byte[] data = new byte[2];
+                        data[0] = (byte) (Integer.parseInt((String)current) & 0xFF);
+                        data[1] = (byte) ((Integer.parseInt((String)current) >> 8) & 0xFF);
+                        bluetoothLeService.writeCharacteristic("4004", data);
+                    } else {
+                        showDialog("Invalid input");
+                    }
+                }
+                return true;
+            }));
+        }
+
+        //bluetoothLeService.readAllCharacteristics();
+        bluetoothLeService.readCharacteristicsForSettingsfragment();
     }
 
     private BroadcastReceiver bleUpdateReceiver = new BroadcastReceiver() {
