@@ -1,5 +1,6 @@
 package com.example.bmsapp;
 
+import android.Manifest;
 import android.app.Service;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
@@ -14,6 +15,7 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.os.Binder;
+import android.os.Build;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
@@ -23,6 +25,11 @@ import android.widget.Toast;
 import androidx.core.app.ActivityCompat;
 import androidx.preference.PreferenceManager;
 
+import java.math.RoundingMode;
+import java.text.DecimalFormat;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Objects;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.UUID;
@@ -35,10 +42,11 @@ public class BluetoothLeService extends Service {
     private long updateInterval = 0;
     private Handler handler;
     private Runnable runnable;
-    private float batVoltage;
     private boolean isConnected = false;
     private final IBinder binder = new LocalBinder();
     private final Handler handlerToast = new Handler(Looper.getMainLooper());
+    private final ArrayList<BluetoothGattCharacteristic> bluetoothGattCharacteristicList = new ArrayList<>();
+    private ArrayList<BluetoothGattCharacteristic> tempBluetoothGattCharacteristicList = new ArrayList<>();
 
     public class LocalBinder extends Binder {
         BluetoothLeService getService() {
@@ -73,15 +81,10 @@ public class BluetoothLeService extends Service {
         runnable = new Runnable() {
             @Override
             public void run() {
-                if(updateInterval > 0) {
+                if (updateInterval > 0) {
                     logQuick("Timer");
                     logQuick(String.valueOf(updateInterval));
-                    BluetoothGattCharacteristic characteristic = getCharacteristic();
-                    if (characteristic != null) {
-                        readCharacteristic(characteristic);
-                    } else {
-                        Log.w(TAG, "Characteristic x3001 not found");
-                    }
+                    readAllCharacteristics();
                     handler.postDelayed(this, updateInterval);
                 }
 
@@ -89,38 +92,16 @@ public class BluetoothLeService extends Service {
         };
         return true;
     }
-    public BluetoothGattCharacteristic getCharacteristic() {
-        if(isConnected) {
-            String shortUuid = "0x3000"; //bat voltage characteristic
-            String shortchar = "0x3001";
-            // Convert the 16-bit UUID to 128-bit format
-            String longUuid = shortUuid.replace("0x", "") + "-0000-1000-8000-00805F9B34FB";
-            String longUuidChar = shortchar.replace("0x", "") + "-0000-1000-8000-00805F9B34FB";
-            // Create the UUID object
-            UUID serviceUuid = UUID.fromString(longUuid);
-            UUID charUuid = UUID.fromString(longUuidChar);
-            BluetoothGattService service = bluetoothGatt.getService(serviceUuid);
-            if (service != null) {
-                return service.getCharacteristic(charUuid);
-            } else {
-                Toast toast = Toast.makeText(this, "No service found.", Toast.LENGTH_LONG);
-                toast.show();
-                return null;
-            }
-        } else {
-            Toast.makeText(this, "Not connected.", Toast.LENGTH_LONG).show();
-            return null;
-        }
-    }
+
     public boolean connect(final String address) {
         if (bluetoothAdapter == null || address == null) {
-            handlerToast.post(()->Toast.makeText(this, "BluetoothAdapter not initialized or unspecified address.", Toast.LENGTH_LONG).show());
+            handlerToast.post(() -> Toast.makeText(this, "BluetoothAdapter not initialized or unspecified address.", Toast.LENGTH_LONG).show());
             return false;
         }
 
         final BluetoothDevice device = bluetoothAdapter.getRemoteDevice(address);
         if (device == null) {
-            handlerToast.post(()->Toast.makeText(this, "Device not found. Unable to connect.", Toast.LENGTH_LONG).show());
+            handlerToast.post(() -> Toast.makeText(this, "Device not found. Unable to connect.", Toast.LENGTH_LONG).show());
             return false;
         }
 
@@ -130,21 +111,23 @@ public class BluetoothLeService extends Service {
         bluetoothGatt = device.connectGatt(this, false, gattCallback);
         return true;
     }
+
     public void runUpdateTimer() {
         SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(this);
         try {
-            updateInterval =(long)( 1000L * Float.parseFloat(sharedPreferences.getString("update_interval", "0")));
+            updateInterval = (long) (1000L * Float.parseFloat(sharedPreferences.getString("update_interval", "0")));
 
         } catch (Exception e) {
 
         }
         //if(updateInterval!= 0) {
-            handler.postDelayed(runnable, updateInterval);
-       // }
+        handler.postDelayed(runnable, updateInterval);
+        // }
     }
+
     public void updateInterval(float interval) {
         logQuick("updateinterval ");
-        if(interval > 0 && isConnected) {
+        if (interval > 0 && isConnected) {
             updateInterval = (long) (interval * 1000L);
             //Restart timer
             logQuick(String.valueOf(updateInterval));
@@ -154,9 +137,11 @@ public class BluetoothLeService extends Service {
             handler.removeCallbacks(runnable);
         }
     }
+
     public void logQuick(String message) {
         Log.d(TAG, message);
     }
+
     private final BluetoothGattCallback gattCallback = new BluetoothGattCallback() {
         @Override
         public void onConnectionStateChange(BluetoothGatt gatt, int status, int newState) {
@@ -174,8 +159,8 @@ public class BluetoothLeService extends Service {
             } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
                 Log.i(TAG, "Disconnected from GATT server.");
                 //Toast.makeText(getApplicationContext(), "Disconnected.", Toast.LENGTH_LONG).show();
-               // Toast.makeText(this, "test, ")
-                handlerToast.post(() ->Toast.makeText(getApplicationContext(), "Disconnected.", Toast.LENGTH_LONG).show());
+                // Toast.makeText(this, "test, ")
+                handlerToast.post(() -> Toast.makeText(getApplicationContext(), "Disconnected.", Toast.LENGTH_LONG).show());
                 Intent intent = new Intent("connection_state_change");
                 handler.removeCallbacks(runnable);//stop timer
                 intent.putExtra("is_connected", false);
@@ -183,38 +168,104 @@ public class BluetoothLeService extends Service {
                 isConnected = false;
             }
         }
+
+        // New services discovered
+        @Override
+        public void onServicesDiscovered(BluetoothGatt gatt, int status) {
+            if (status == BluetoothGatt.GATT_SUCCESS) {
+                for (BluetoothGattService gattService : gatt.getServices()) {
+                    if ((gattService.getUuid().toString()).startsWith("3000", 4) || (gattService.getUuid().toString()).startsWith("4000", 4)) {
+                        for (BluetoothGattCharacteristic mCharacteristic : gattService.getCharacteristics()) {
+                            Log.i(TAG, "Found Characteristic: " + mCharacteristic.getUuid().toString());
+                            bluetoothGattCharacteristicList.add(mCharacteristic);
+                        }
+                    }
+                    Log.i(TAG, "onServicesDiscovered UUID: " + gattService.getUuid().toString());
+                }
+                tempBluetoothGattCharacteristicList.addAll(bluetoothGattCharacteristicList);
+            }
+        }
+
         @Override
         public void onCharacteristicRead(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, int status) {
-            String shortUuid = "0x3001"; //bat voltage characteristic
-            String longUuid = shortUuid.replace("0x", "") + "-0000-1000-8000-00805F9B34FB";
-            UUID uuid = UUID.fromString(longUuid);
+            String uuid = characteristic.getUuid().toString().substring(4, 8);
             if (status == BluetoothGatt.GATT_SUCCESS) {
-                if (uuid.equals(characteristic.getUuid())) {
-                    byte[] data = characteristic.getValue();
-                    int batVoltage = ((data[0] & 0xFF) << 8) | (data[1] & 0xFF);
-
-                    logQuick(String.valueOf(batVoltage));
-                    Intent intent = new Intent("BLE_DATA");
-                    intent.putExtra("BLE_DATA", String.valueOf(batVoltage));
-                    sendBroadcast(intent);
+                Intent intent;
+                byte[] data = characteristic.getValue();
+                switch (uuid) {
+                    case "3001":  // battery pack voltage read
+                        intent = new Intent("PACK_VOLTAGE");
+                        intent.putExtra("PACK_VOLTAGE", data);
+                        sendBroadcast(intent);
+                        break;
+                    case "3002":  // cell voltages read
+                        intent = new Intent("CELL_VOLTAGES");
+                        intent.putExtra("CELL_VOLTAGES", data);
+                        sendBroadcast(intent);
+                        break;
+                    case "3003":  // cell balancing state read
+                        intent = new Intent("CELL_BALANCING_STATE");
+                        intent.putExtra("CELL_BALANCING_STATE", data);
+                        sendBroadcast(intent);
+                        break;
+                    case "3004": // charge current read
+                        intent = new Intent("CHARGE_CURRENT");
+                        intent.putExtra("CHARGE_CURRENT", data);
+                        sendBroadcast(intent);
+                        break;
+                    case "3005":
+                        break;
+                    case "3006":
+                        break;
+                }
+                tempBluetoothGattCharacteristicList.remove(tempBluetoothGattCharacteristicList.get(tempBluetoothGattCharacteristicList.size() - 1));
+                if (!tempBluetoothGattCharacteristicList.isEmpty()) {
+                    requestCharacteristics(bluetoothGatt);
+                } else {
+                    logQuick("all chars read");
+                    tempBluetoothGattCharacteristicList.addAll(bluetoothGattCharacteristicList);
                 }
             }
         }
     };
 
+    public void requestCharacteristics(BluetoothGatt gatt) {
+        if (ActivityCompat.checkSelfPermission(this, android.Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
+            return;
+        }
+        gatt.readCharacteristic(tempBluetoothGattCharacteristicList.get(tempBluetoothGattCharacteristicList.size() - 1));
+    }
+
     public BluetoothGatt getBluetoothGatt() {
         return bluetoothGatt;
     }
 
+    private BluetoothGattCharacteristic getCharacteristicByUUID(String uuid) {
+        for (BluetoothGattCharacteristic characteristic : bluetoothGattCharacteristicList) {
+            if (characteristic.getUuid().toString().startsWith(uuid, 4)) {
+                return characteristic;
+            }
+        }
+        return null;
+    }
 
-    public void readCharacteristic(BluetoothGattCharacteristic characteristic) {
+    public void readAllCharacteristics() {
         if (bluetoothAdapter == null || bluetoothGatt == null) {
-            Log.w("BLESERVICE", "BluetoothAdapter not initialized");
+            logQuick("BluetoothAdapter not initialized");
             return;
         }
         if (ActivityCompat.checkSelfPermission(this, android.Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
             return;
         }
-        bluetoothGatt.readCharacteristic(characteristic);
+        requestCharacteristics(bluetoothGatt);
+    }
+
+    public void writeCharacteristic(String uuid, byte[] value) {
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
+            return;
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            bluetoothGatt.writeCharacteristic(Objects.requireNonNull(getCharacteristicByUUID(uuid)), value, BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT);
+        }
     }
 }

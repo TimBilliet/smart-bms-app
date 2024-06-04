@@ -22,6 +22,10 @@
 
     <PreferenceCategory app:title="BMS parameters"
         app:key="param_category">
+        <SwitchPreference
+            app:key="only_balance_when_charging"
+            app:title="Only balance when charging"
+            />
         <EditTextPreference
             app:key="shunt_value"
             app:title="Current shunt value(mΩ)"

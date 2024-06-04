@@ -5,6 +5,7 @@ import static android.bluetooth.BluetoothGattCharacteristic.FORMAT_UINT8;
 import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.app.Dialog;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothGatt;
@@ -62,6 +63,7 @@ import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
+import android.view.Window;
 import android.widget.Button;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
@@ -89,8 +91,7 @@ public class MainActivity extends AppCompatActivity {
     private boolean isConnected = false;
     private MenuItem connectionIcon;
     private Menu menu;
-    private MenuItem bleStatusMenuItem;
-    int storedIconColour;
+    Dialog powerOffDialog;
     private static final int MY_PERMISSION_REQUEST_CODE = 420;
     String storedMac;
 
@@ -133,6 +134,7 @@ public class MainActivity extends AppCompatActivity {
         storedMac = sharedPreferences.getString("mac_address", "default value");
         logQuick(storedMac);
     }
+    /*
     private void updateBleStatusIcon(boolean isConnected) {
         logQuick("isconnected");
         if (bleStatusMenuItem != null) {
@@ -142,6 +144,8 @@ public class MainActivity extends AppCompatActivity {
             bleStatusMenuItem.setIcon(icon);
         }
     }
+
+     */
     private void requestBluetoothEnable() {
         if (!bluetoothAdapter.isEnabled()) {
             Intent enableBtIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
@@ -307,14 +311,18 @@ public class MainActivity extends AppCompatActivity {
 
         } else if(id == R.id.manual_refresh){
             logQuick("refresh press");
-            if(bluetoothLeService != null) {
-                BluetoothGattCharacteristic characteristic = bluetoothLeService.getCharacteristic();
-                if (characteristic != null) {
-                    logQuick("bluetooth characteristic read from mainactivity");
-                    bluetoothLeService.readCharacteristic(characteristic);
-                } else {
-                    logQuick("Characteristic x3001 not found");
-                }
+            if(bluetoothLeService != null && isConnected) {
+                logQuick("bluetooth characteristic read from mainactivity");
+                bluetoothLeService.readAllCharacteristics();
+            } else {
+                Toast.makeText(getApplicationContext(), "Not connected.", Toast.LENGTH_LONG).show();
+            }
+        } else if(id == R.id.power_off) {
+            logQuick("power off");
+            if(bluetoothLeService != null && isConnected) {
+                showPowerOffDialog();
+            } else {
+                Toast.makeText(getApplicationContext(), "Not connected.", Toast.LENGTH_LONG).show();
             }
         }
         return super.onOptionsItemSelected(item);
@@ -339,6 +347,25 @@ public class MainActivity extends AppCompatActivity {
         return NavigationUI.navigateUp(navController, appBarConfiguration)
                 || super.onSupportNavigateUp();
     }
+    private void showPowerOffDialog() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setMessage("Are you sure you want to power off the bms?");
+        builder.setPositiveButton("Yes", (dialog, which) -> shutdownBms());
+        builder.setNegativeButton("No", (dialog, which) -> {
+
+        });
+        builder.create();
+        builder.show();
+
+    }
+    private void shutdownBms() {
+        byte[] value = {0};
+        bluetoothLeService.writeCharacteristic("4007", value);
+        isConnected = false;
+    }
+   // private void enableBalancing() {
+
+   // }
 
     @Override
     public boolean onPrepareOptionsMenu(Menu menu) {

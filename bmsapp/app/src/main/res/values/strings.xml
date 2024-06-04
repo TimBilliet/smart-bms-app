@@ -26,4 +26,5 @@
     <string name="attachment_summary_off">Only download attachments when manually requested</string>
     <string name="manual_refresh">Manual refresh</string>
     <string name="refresh">refresh</string>
+    <string name="power_off">power_off</string>
 </resources>
