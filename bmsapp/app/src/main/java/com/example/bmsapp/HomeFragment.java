@@ -13,7 +13,9 @@ import android.content.IntentFilter;
 import android.content.ServiceConnection;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
 import android.os.IBinder;
+import android.os.Looper;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.Menu;
@@ -23,7 +25,9 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.ProgressBar;
+import android.widget.Switch;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.activity.OnBackPressedCallback;
 import androidx.annotation.NonNull;
@@ -47,13 +51,18 @@ public class HomeFragment extends Fragment{
     public static final String TAG = "Homefragment";
     private TextView textViewBatVoltage;
     private TextView textViewCurrent;
+    private Switch enableChargingSwitch;
+    private Switch enableBalancingSwitch;
     private List<TextView> textViewCellVoltagesList = new ArrayList<>();
     private List<ProgressBar> progressBarCellList = new ArrayList<>();
     private List<TextView> textViewCellBalancingStateList = new ArrayList<>();
     private TextView textViewVoltageRange;
     private TextView textViewVoltageDifference;
+    private double chargeCurrentA;
+    private final Handler handlerToast = new Handler(Looper.getMainLooper());
     private BluetoothLeService bluetoothLeService;
     private boolean isServiceBound = false;
+    private  boolean onlyBalanceWhenCharging;
 
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
@@ -93,6 +102,40 @@ public class HomeFragment extends Fragment{
         textViewCellBalancingStateList.add(view.findViewById(R.id.textViewBalancing10));
         textViewVoltageRange = view.findViewById(R.id.textViewRange);
         textViewVoltageDifference = view.findViewById(R.id.textViewDifference);
+        enableBalancingSwitch = view.findViewById(R.id.switchBalancing);
+        enableChargingSwitch = view.findViewById(R.id.switchCharging);
+        enableBalancingSwitch.setOnClickListener(v -> {
+            if(bluetoothLeService != null) {
+                byte[] data = {0};
+                if(enableBalancingSwitch.isChecked()) {
+                    if(onlyBalanceWhenCharging) {
+                        if(chargeCurrentA > 0.05) {
+                            data[0] = 1;
+                        } else {
+                            handlerToast.post(() -> Toast.makeText(requireContext(), "Balancing only allowed while charging", Toast.LENGTH_SHORT).show());
+                            enableBalancingSwitch.setChecked(false);
+                            data[0] = 0;
+                        }
+                    } else {
+                        data[0] = 1;
+                    }
+
+                }
+                bluetoothLeService.writeCharacteristic("3005", data);
+            }
+        });
+        enableChargingSwitch.setOnClickListener(v -> {
+            if(bluetoothLeService != null) {
+                byte[] data = {0};
+                if(enableChargingSwitch.isChecked()) {
+                    data[0] = 1;
+                }
+                bluetoothLeService.writeCharacteristic("3006", data);
+            } else {
+                logQuick("ITSNULLJGBIGQI5G");
+            }
+        });
+
         Intent gattServiceIntent = new Intent(getActivity(), BluetoothLeService.class);
         requireActivity().bindService(gattServiceIntent, serviceConnection, Context.BIND_AUTO_CREATE);
 
@@ -151,9 +194,25 @@ public class HomeFragment extends Fragment{
             } else if("CHARGE_CURRENT".equals(action)) {
                 byte[] data = intent.getByteArrayExtra("CHARGE_CURRENT");
                 int chargeCurrentmA = ((data[0] & 0xFF) << 8) | (data[1] & 0xFF);
-                double chargeCurrentA = chargeCurrentmA / 1000.0;
+                chargeCurrentA = chargeCurrentmA / 1000.0;
                 textViewCurrent.setText(df.format(chargeCurrentA));
 
+            } else if("ENABLE_BALANCING".equals(action)) {
+                byte[] data = intent.getByteArrayExtra("ENABLE_BALANCING");
+                boolean state = data[0] != 0;
+                enableBalancingSwitch.setChecked(state);
+            } else if("ENABLE_CHARGING".equals(action)) {
+                byte[] data = intent.getByteArrayExtra("ENABLE_CHARGING");
+                boolean state = data[0] != 0;
+                enableChargingSwitch.setChecked(state);
+            } else if("IS_CONNECTED".equals(action)) {
+                logQuick("received broadcast of connection in homefrag");
+            } else if("ONLY_BALANCE_WHEN_CHARGING".equals(action)) {
+               // onlyBalanceWhenCharging
+                byte[] data = intent.getByteArrayExtra("ONLY_BALANCE_WHEN_CHARGING");
+                boolean checked = data[0] != 0;
+                logQuick("only balance when charging: " + checked);
+                onlyBalanceWhenCharging = checked;
             }
         }
     };
@@ -194,6 +253,7 @@ public class HomeFragment extends Fragment{
             requireActivity().registerReceiver(bleUpdateReceiver, new IntentFilter("CHARGE_CURRENT"), Context.RECEIVER_NOT_EXPORTED);
             requireActivity().registerReceiver(bleUpdateReceiver, new IntentFilter("ENABLE_CHARGING"), Context.RECEIVER_NOT_EXPORTED);
             requireActivity().registerReceiver(bleUpdateReceiver, new IntentFilter("ENABLE_BALANCING"), Context.RECEIVER_NOT_EXPORTED);
+            requireActivity().registerReceiver(bleUpdateReceiver, new IntentFilter("ONLY_BALANCE_WHEN_CHARGING"), Context.RECEIVER_NOT_EXPORTED);
         }
         MainActivity activity = (MainActivity) requireActivity();
         if(activity.getBluetoothservice() != null) {

@@ -152,8 +152,9 @@ public class BluetoothLeService extends Service {
                     return;
                 }
                 isConnected = true;
-                Intent intent = new Intent("connection_state_change");
-                intent.putExtra("is_connected", true);
+                Intent intent = new Intent("CONNECTION_STATE_CHANGED");
+                intent.putExtra("CONNECTION_STATE_CHANGED", true);
+                logQuick("connection state should be true");
                 sendBroadcast(intent);
                 bluetoothGatt.discoverServices();
             } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
@@ -161,9 +162,9 @@ public class BluetoothLeService extends Service {
                 //Toast.makeText(getApplicationContext(), "Disconnected.", Toast.LENGTH_LONG).show();
                 // Toast.makeText(this, "test, ")
                 handlerToast.post(() -> Toast.makeText(getApplicationContext(), "Disconnected.", Toast.LENGTH_LONG).show());
-                Intent intent = new Intent("connection_state_change");
+                Intent intent = new Intent("CONNECTION_STATE_CHANGED");
                 handler.removeCallbacks(runnable);//stop timer
-                intent.putExtra("is_connected", false);
+                intent.putExtra("CONNECTION_STATE_CHANGED", false);
                 sendBroadcast(intent);
                 isConnected = false;
             }
@@ -182,7 +183,9 @@ public class BluetoothLeService extends Service {
                     }
                     Log.i(TAG, "onServicesDiscovered UUID: " + gattService.getUuid().toString());
                 }
+
                 tempBluetoothGattCharacteristicList.addAll(bluetoothGattCharacteristicList);
+                readAllCharacteristics();
             }
         }
 
@@ -190,34 +193,54 @@ public class BluetoothLeService extends Service {
         public void onCharacteristicRead(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, int status) {
             String uuid = characteristic.getUuid().toString().substring(4, 8);
             if (status == BluetoothGatt.GATT_SUCCESS) {
-                Intent intent;
+                Intent intent = null;
                 byte[] data = characteristic.getValue();
+                String intentString = "";
                 switch (uuid) {
                     case "3001":  // battery pack voltage read
-                        intent = new Intent("PACK_VOLTAGE");
-                        intent.putExtra("PACK_VOLTAGE", data);
-                        sendBroadcast(intent);
+                        intentString = "PACK_VOLTAGE";
                         break;
                     case "3002":  // cell voltages read
-                        intent = new Intent("CELL_VOLTAGES");
-                        intent.putExtra("CELL_VOLTAGES", data);
-                        sendBroadcast(intent);
+                        intentString = "CELL_VOLTAGES";
                         break;
                     case "3003":  // cell balancing state read
-                        intent = new Intent("CELL_BALANCING_STATE");
-                        intent.putExtra("CELL_BALANCING_STATE", data);
-                        sendBroadcast(intent);
+                        intentString = "CELL_BALANCING_STATE";
                         break;
                     case "3004": // charge current read
-                        intent = new Intent("CHARGE_CURRENT");
-                        intent.putExtra("CHARGE_CURRENT", data);
-                        sendBroadcast(intent);
+                        intentString = "CHARGE_CURRENT";
                         break;
-                    case "3005":
+                    case "3005": // balancing enabled read
+                        intentString = "ENABLE_BALANCING";
                         break;
-                    case "3006":
+                    case "3006": // charging enabled read
+                        intentString = "ENABLE_CHARGING";
+                        break;
+                    case "4001":
+                        intentString = "SHUNT_RESISTOR";
+                        break;
+                    case "4002":
+                        intentString = "OVERCURRENT";
+                        break;
+                    case "4003":
+                        intentString = "UNDERVOLT";
+                        break;
+                    case "4004":
+                        intentString = "OVERVOLT";
+                        break;
+                    case "4005":
+                        intentString = "BALANCING_THRESHOLDS";
+                        break;
+                    case "4006":
+                        intentString = "IDLE_CURRENT";
+                        break;
+                        //4007 is power on, not useful
+                    case "4008": //
+                        intentString = "ONLY_BALANCE_WHEN_CHARGING";
                         break;
                 }
+                intent = new Intent(intentString);
+                intent.putExtra(intentString, data);
+                sendBroadcast(intent);
                 tempBluetoothGattCharacteristicList.remove(tempBluetoothGattCharacteristicList.get(tempBluetoothGattCharacteristicList.size() - 1));
                 if (!tempBluetoothGattCharacteristicList.isEmpty()) {
                     requestCharacteristics(bluetoothGatt);
@@ -233,6 +256,7 @@ public class BluetoothLeService extends Service {
         if (ActivityCompat.checkSelfPermission(this, android.Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
             return;
         }
+        logQuick("request char");
         gatt.readCharacteristic(tempBluetoothGattCharacteristicList.get(tempBluetoothGattCharacteristicList.size() - 1));
     }
 
@@ -258,6 +282,10 @@ public class BluetoothLeService extends Service {
             return;
         }
         requestCharacteristics(bluetoothGatt);
+    }
+
+    public void readCharacteristicsForHomefragment() {
+
     }
 
     public void writeCharacteristic(String uuid, byte[] value) {

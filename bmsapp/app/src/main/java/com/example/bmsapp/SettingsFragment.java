@@ -1,9 +1,6 @@
 package com.example.bmsapp;
 
 import android.app.AlertDialog;
-import android.bluetooth.BluetoothAdapter;
-import android.bluetooth.BluetoothGatt;
-import android.bluetooth.BluetoothGattService;
 import android.content.BroadcastReceiver;
 import android.content.ComponentName;
 import android.content.Context;
@@ -11,22 +8,16 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.ServiceConnection;
 import android.content.SharedPreferences;
-import android.graphics.Color;
-import android.graphics.PorterDuff;
-import android.graphics.drawable.Drawable;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.util.Log;
-import android.view.Menu;
-import android.widget.Toast;
 
 import androidx.annotation.NonNull;
-import androidx.lifecycle.ViewModelProvider;
 import androidx.preference.EditTextPreference;
-import androidx.preference.PreferenceCategory;
 import androidx.preference.PreferenceFragmentCompat;
 import androidx.preference.PreferenceManager;
+import androidx.preference.SwitchPreference;
 
 //import com.example.bmsapp.databinding.FragmentSettingsBinding;
 
@@ -44,6 +35,14 @@ public class SettingsFragment extends PreferenceFragmentCompat {
     private boolean isConnected = false;
     private EditTextPreference macAddressPreference;
     private EditTextPreference appUpdateIntervalPreference;
+    private SwitchPreference onlyBalanceWhileChargingPreference;
+    private EditTextPreference shuntResistorPreference;
+    private EditTextPreference overChargeCurrentPreference;
+    private EditTextPreference underVoltagePreference;
+    private EditTextPreference overVoltagePreference;
+    private EditTextPreference minimumBalanceVoltagePreference;
+    private EditTextPreference maximumCellVoltageDifferencePreference;
+    private EditTextPreference idleCurrentPreference;
     private BluetoothLeService bluetoothLeService;
     private MainActivity mainActivity;
     private SharedPreferences sharedPreferences;
@@ -61,15 +60,23 @@ public class SettingsFragment extends PreferenceFragmentCompat {
 
     @Override
     public void onCreatePreferences(Bundle savedInstanceState, String rootKey) {
+        logQuick("on create preferences");
         setPreferencesFromResource(R.xml.root_preferences, rootKey);
         macAddressPreference = findPreference("mac_address");
         appUpdateIntervalPreference = findPreference("update_interval");
+        onlyBalanceWhileChargingPreference = findPreference("only_balance_while_charging");
+        shuntResistorPreference = findPreference("shunt_value");
+        overChargeCurrentPreference = findPreference("overcharge_current");
+        underVoltagePreference = findPreference("undervolt");
+        overVoltagePreference = findPreference("overvolt");
+        minimumBalanceVoltagePreference = findPreference("min_balance_voltage");
+        maximumCellVoltageDifferencePreference = findPreference("max_cell_voltage_diff");
+        idleCurrentPreference = findPreference("idle_current_threshold");
         sharedPreferences = PreferenceManager.getDefaultSharedPreferences(requireActivity());
         if (macAddressPreference != null) {
             macAddressPreference.setPositiveButtonText("Connect");
             macAddressPreference.setOnBindEditTextListener(editText -> editText.setHint("AA:AA:AA:AA:AA:AA"));
             macAddressPreference.setOnPreferenceChangeListener((preference, macAddress) -> {
-
                 if (!isValidMacAddress((String) macAddress)) {
                     showDialog("Invalid MAC address");
                 } else {
@@ -82,7 +89,6 @@ public class SettingsFragment extends PreferenceFragmentCompat {
             });
         }
         if(appUpdateIntervalPreference != null) {
-            appUpdateIntervalPreference.setPositiveButtonText("OK");
             appUpdateIntervalPreference.setOnPreferenceChangeListener((preference, interval) -> {
                 if(isValidDelay((String) interval)) {
                     if(Float.parseFloat((String) interval) >= 0) {
@@ -92,7 +98,7 @@ public class SettingsFragment extends PreferenceFragmentCompat {
                         SharedPreferences.Editor editor = sharedPreferences.edit();
                         editor.putString("update_interval", (String) interval);
                         editor.apply();
-                        logQuick( "is connected: "+isConnected);
+                        logQuick( "is connected: " + isConnected);
                         bluetoothLeService.updateInterval(updateInterval);
                     }
                 } else {
@@ -102,24 +108,81 @@ public class SettingsFragment extends PreferenceFragmentCompat {
                 return true;
             });
         }
+        if(onlyBalanceWhileChargingPreference != null) {
+            onlyBalanceWhileChargingPreference.setOnPreferenceChangeListener(((preference, toggle) -> {
+                if(bluetoothLeService != null) {
+                    byte[] data = {0};
+                    if ((boolean) toggle) {
+                        logQuick("ON ON WE OIN");
+                        data[0] = 1;
+                    } else {
+                        logQuick("we off");
+                    }
+                   bluetoothLeService.writeCharacteristic("4008", data);
+
+                }
+                return true;
+            }));
+        }
+        bluetoothLeService.readAllCharacteristics();
     }
 
-    private BroadcastReceiver connectionStateReceiver = new BroadcastReceiver() {
+    private BroadcastReceiver bleUpdateReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
-            logQuick("received connection changed status in settingsfrag");
-            // Handle the connection state change here
-            isConnected = intent.getBooleanExtra("is_connected", false);
-            // Update UI or preferences based on the connection state
-            if(isConnected) {
-                bluetoothLeService.runUpdateTimer();
-                //Save mac address so it can be used later to automatically connect
-                sharedPreferences = PreferenceManager.getDefaultSharedPreferences(requireActivity());
-                SharedPreferences.Editor editor = sharedPreferences.edit();
-                editor.putString("mac_address", macAddress);
-                logQuick(macAddress);
-                editor.apply();
-                showDialog("Connected to: " + macAddress);
+            String action = intent.getAction();
+            logQuick(action);
+            byte[] data;
+            switch (Objects.requireNonNull(action)) {
+                case "CONNECTION_STATE_CHANGED":
+                    if(intent.getBooleanExtra("CONNECTION_STATE_CHANGED", false)) {
+                        isConnected = true;
+                        bluetoothLeService.runUpdateTimer();
+                        //Save mac address so it can be used later to automatically connect
+                        sharedPreferences = PreferenceManager.getDefaultSharedPreferences(requireActivity());
+                        SharedPreferences.Editor editor = sharedPreferences.edit();
+                        editor.putString("mac_address", macAddress);
+                        logQuick(macAddress);
+                        editor.apply();
+                        showDialog("Connected to: " + macAddress);
+                    }
+                    break;
+                case "SHUNT_RESISTOR":
+                    data = intent.getByteArrayExtra("SHUNT_RESISTOR");
+                    shuntResistorPreference.setText(String.valueOf(data[0]));
+                    break;
+                case "OVERCURRENT":
+                    data = intent.getByteArrayExtra("OVERCURRENT");
+                    int current = ((data[0] & 0xFF) << 8) | (data[1] & 0xFF);
+                    overChargeCurrentPreference.setText(String.valueOf(current));
+                    break;
+                case "UNDERVOLT":
+                    data = intent.getByteArrayExtra("UNDERVOLT");
+                    int undervolt = ((data[0] & 0xFF) << 8) | (data[1] & 0xFF);
+                    underVoltagePreference.setText(String.valueOf(undervolt));
+                    break;
+                case "OVERVOLT":
+                    data = intent.getByteArrayExtra("OVERVOLT");
+                    int overvolt = ((data[0] & 0xFF) << 8) | (data[1] & 0xFF);
+                    overVoltagePreference.setText(String.valueOf(overvolt));
+                    break;
+                case "BALANCING_THRESHOLDS":
+                    data = intent.getByteArrayExtra("BALANCING_THRESHOLDS");
+                    int minBalancingVoltage = ((data[0] & 0xFF) << 8) | (data[1] & 0xFF);
+                    int maxVoltageDifference = ((data[2] & 0xFF) << 8) | (data[3] & 0xFF);
+                    minimumBalanceVoltagePreference.setText(String.valueOf(minBalancingVoltage));
+                    maximumCellVoltageDifferencePreference.setText(String.valueOf(maxVoltageDifference));
+                    break;
+                case "IDLE_CURRENT":
+                    data = intent.getByteArrayExtra("IDLE_CURRENT");
+                    int idleCurrent = ((data[0] & 0xFF) << 8) | (data[1] & 0xFF);
+                    idleCurrentPreference.setText(String.valueOf(idleCurrent));
+                    break;
+                case "ONLY_BALANCE_WHEN_CHARGING":
+                    data = intent.getByteArrayExtra("ONLY_BALANCE_WHEN_CHARGING");
+                    boolean checked = data[0] != 0;
+                    onlyBalanceWhileChargingPreference.setChecked(checked);
+                    break;
             }
         }
     };
@@ -166,16 +229,24 @@ public class SettingsFragment extends PreferenceFragmentCompat {
     @Override
     public void onResume() {
         super.onResume();
-        IntentFilter intentFilter = new IntentFilter("connection_state_change");
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            requireActivity().registerReceiver(connectionStateReceiver, intentFilter, Context.RECEIVER_NOT_EXPORTED);
+            requireActivity().registerReceiver(bleUpdateReceiver, new IntentFilter("CONNECTION_STATE_CHANGED"), Context.RECEIVER_NOT_EXPORTED);
+            requireActivity().registerReceiver(bleUpdateReceiver, new IntentFilter("SHUNT_RESISTOR"), Context.RECEIVER_NOT_EXPORTED);
+            requireActivity().registerReceiver(bleUpdateReceiver, new IntentFilter("OVERCURRENT"), Context.RECEIVER_NOT_EXPORTED);
+            requireActivity().registerReceiver(bleUpdateReceiver, new IntentFilter("UNDERVOLT"), Context.RECEIVER_NOT_EXPORTED);
+            requireActivity().registerReceiver(bleUpdateReceiver, new IntentFilter("OVERVOLT"), Context.RECEIVER_NOT_EXPORTED);
+            requireActivity().registerReceiver(bleUpdateReceiver, new IntentFilter("BALANCING_THRESHOLDS"), Context.RECEIVER_NOT_EXPORTED);
+            requireActivity().registerReceiver(bleUpdateReceiver, new IntentFilter("IDLE_CURRENT"), Context.RECEIVER_NOT_EXPORTED);
+            requireActivity().registerReceiver(bleUpdateReceiver, new IntentFilter("ONLY_BALANCE_WHEN_CHARGING"), Context.RECEIVER_NOT_EXPORTED);
+
         }
     }
 
     @Override
     public void onPause() {
         super.onPause();
-        requireActivity().unregisterReceiver(connectionStateReceiver);
+        requireActivity().unregisterReceiver(bleUpdateReceiver);
     }
 
     public static boolean isValidUUID(String input) {

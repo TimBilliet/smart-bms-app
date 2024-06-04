@@ -23,8 +23,10 @@
     <PreferenceCategory app:title="BMS parameters"
         app:key="param_category">
         <SwitchPreference
-            app:key="only_balance_when_charging"
-            app:title="Only balance when charging"
+            app:key="only_balance_while_charging"
+            app:title="Only balance while charging"
+            app:switchTextOn="ON"
+            app:switchTextOff="OFF"
             />
         <EditTextPreference
             app:key="shunt_value"

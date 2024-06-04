@@ -67,6 +67,7 @@ import android.view.Window;
 import android.widget.Button;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
+import android.widget.Switch;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -89,9 +90,8 @@ public class MainActivity extends AppCompatActivity {
     private MainActivity thisActivity;
     NavController navController;
     private boolean isConnected = false;
-    private MenuItem connectionIcon;
+
     private Menu menu;
-    Dialog powerOffDialog;
     private static final int MY_PERMISSION_REQUEST_CODE = 420;
     String storedMac;
 
@@ -133,19 +133,9 @@ public class MainActivity extends AppCompatActivity {
         SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(this);
         storedMac = sharedPreferences.getString("mac_address", "default value");
         logQuick(storedMac);
-    }
-    /*
-    private void updateBleStatusIcon(boolean isConnected) {
-        logQuick("isconnected");
-        if (bleStatusMenuItem != null) {
-            Drawable icon = DrawableCompat.wrap(bleStatusMenuItem.getIcon()).mutate();
-            int color = isConnected ? R.color.connected_color : R.color.disconnected_color;
-            DrawableCompat.setTint(icon, getResources().getColor(color));
-            bleStatusMenuItem.setIcon(icon);
-        }
+
     }
 
-     */
     private void requestBluetoothEnable() {
         if (!bluetoothAdapter.isEnabled()) {
             Intent enableBtIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
@@ -167,7 +157,6 @@ public class MainActivity extends AppCompatActivity {
             }
             bluetoothLeService.runUpdateTimer();
             bluetoothLeService.connect(convertToUpperCase(storedMac));
-
         }
 
         @Override
@@ -264,7 +253,7 @@ public class MainActivity extends AppCompatActivity {
             Log.i("main","received connection changed status in mainactivity");
 
             // Handle the connection state change here
-            isConnected = intent.getBooleanExtra("is_connected", false);
+            isConnected = intent.getBooleanExtra("CONNECTION_STATE_CHANGED", false);
             // Update connection with the correct colour
             if(isConnected) {
                 Toast.makeText(getApplicationContext(), "Connected.", Toast.LENGTH_LONG).show();
@@ -277,7 +266,7 @@ public class MainActivity extends AppCompatActivity {
     @Override
     public void onResume() {
         super.onResume();
-        IntentFilter intentFilter = new IntentFilter("connection_state_change");
+        IntentFilter intentFilter = new IntentFilter("CONNECTION_STATE_CHANGED");
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             registerReceiver(connectionStateReceiver, intentFilter, Context.RECEIVER_NOT_EXPORTED);
         }
@@ -326,16 +315,6 @@ public class MainActivity extends AppCompatActivity {
             }
         }
         return super.onOptionsItemSelected(item);
-    }
-
-    private void showDialog(String message, String okButton) {
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setMessage(message)
-                .setPositiveButton(okButton, (dialog, which) -> {
-
-                });
-        AlertDialog dialog = builder.create();
-        dialog.show();
     }
 
     public void logQuick(String message) {
