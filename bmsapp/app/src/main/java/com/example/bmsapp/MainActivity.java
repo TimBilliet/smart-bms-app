@@ -329,10 +329,9 @@ public class MainActivity extends AppCompatActivity {
     }
     private void showPowerOffDialog() {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setMessage("Which action do you want to perform?");
-        builder.setNeutralButton("cancel", null);
-        builder.setPositiveButton("Shutdown", (dialog, which) -> shutdownBms());
-        builder.setNegativeButton("restart", (dialog, which) -> restartBms());
+        builder.setMessage("Are you sure you want to power off the bms?");
+        builder.setPositiveButton("yes", (dialog, which) -> shutdownBms());
+        builder.setNegativeButton("cancel", null);
         builder.create();
         builder.show();
 
@@ -342,12 +341,8 @@ public class MainActivity extends AppCompatActivity {
         bluetoothLeService.writeCharacteristic("4007", value);
         isConnected = false;
     }
-    private void restartBms() {
-        //TODO, shutdown bms ic and then esp_restart
-    }
-   // private void enableBalancing() {
 
-   // }
+
 
     @Override
     public boolean onPrepareOptionsMenu(Menu menu) {

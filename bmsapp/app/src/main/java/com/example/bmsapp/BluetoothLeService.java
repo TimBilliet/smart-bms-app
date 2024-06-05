@@ -53,6 +53,7 @@ public class BluetoothLeService extends Service {
     private List<BluetoothGattCharacteristic> tempSettingsfragmentBluetoothGattCharacteristicList = new ArrayList<>();
     private boolean readingHomefragmentCharacteristics = false;
     private boolean readingSettingsfragmentCharacteristics = false;
+
     public class LocalBinder extends Binder {
         BluetoothLeService getService() {
             return BluetoothLeService.this;
@@ -89,7 +90,7 @@ public class BluetoothLeService extends Service {
                 if (updateInterval > 0) {
                     logQuick("Timer");
                     logQuick(String.valueOf(updateInterval));
-                   // readAllCharacteristics();
+                    // readAllCharacteristics();
                     readCharacteristicsForHomefragment();
                     handler.postDelayed(this, updateInterval);
                 }
@@ -185,16 +186,16 @@ public class BluetoothLeService extends Service {
                         for (BluetoothGattCharacteristic mCharacteristic : gattService.getCharacteristics()) {
                             Log.i(TAG, "Found Characteristic: " + mCharacteristic.getUuid().toString());
                             bluetoothGattCharacteristicList.add(mCharacteristic);
-                            if(mCharacteristic.getUuid().toString().startsWith("3001", 4) || mCharacteristic.getUuid().toString().startsWith("3002", 4)
-                            || mCharacteristic.getUuid().toString().startsWith("3003", 4) || mCharacteristic.getUuid().toString().startsWith("3004", 4)
-                            || mCharacteristic.getUuid().toString().startsWith("3005", 4) || mCharacteristic.getUuid().toString().startsWith("3006", 4)
-                            ||mCharacteristic.getUuid().toString().startsWith("4008", 4)) {
+                            if (mCharacteristic.getUuid().toString().startsWith("3001", 4) || mCharacteristic.getUuid().toString().startsWith("3002", 4)
+                                    || mCharacteristic.getUuid().toString().startsWith("3003", 4) || mCharacteristic.getUuid().toString().startsWith("3004", 4)
+                                    || mCharacteristic.getUuid().toString().startsWith("3005", 4) || mCharacteristic.getUuid().toString().startsWith("3006", 4)
+                                    || mCharacteristic.getUuid().toString().startsWith("4008", 4)) {
                                 homefragmentBluetoothGattCharacteristicList.add(mCharacteristic);
                             }
-                            if(mCharacteristic.getUuid().toString().startsWith("4001", 4) || mCharacteristic.getUuid().toString().startsWith("4002", 4)
-                            || mCharacteristic.getUuid().toString().startsWith("4003", 4) || mCharacteristic.getUuid().toString().startsWith("4004", 4)
-                            || mCharacteristic.getUuid().toString().startsWith("4005", 4) || mCharacteristic.getUuid().toString().startsWith("4006", 4)
-                            ||mCharacteristic.getUuid().toString().startsWith("4008", 4)) {
+                            if (mCharacteristic.getUuid().toString().startsWith("4001", 4) || mCharacteristic.getUuid().toString().startsWith("4002", 4)
+                                    || mCharacteristic.getUuid().toString().startsWith("4003", 4) || mCharacteristic.getUuid().toString().startsWith("4004", 4)
+                                    || mCharacteristic.getUuid().toString().startsWith("4005", 4) || mCharacteristic.getUuid().toString().startsWith("4006", 4)
+                                    || mCharacteristic.getUuid().toString().startsWith("4008", 4)) {
                                 settingsfragmentBluetoothGattCharacteristicList.add(mCharacteristic);
                             }
                         }
@@ -203,7 +204,7 @@ public class BluetoothLeService extends Service {
                 }
                 logQuick("size of homefrag list" + homefragmentBluetoothGattCharacteristicList.size());
                 logQuick("size of settingsfrag list" + settingsfragmentBluetoothGattCharacteristicList.size());
-               // logQuick("size of all chars list: " + bluetoothGattCharacteristicList.size());
+                // logQuick("size of all chars list: " + bluetoothGattCharacteristicList.size());
                 tempHomefragmentBluetoothGattCharacteristicList.addAll(homefragmentBluetoothGattCharacteristicList);
                 tempSettingsfragmentBluetoothGattCharacteristicList.addAll(settingsfragmentBluetoothGattCharacteristicList);
                 tempBluetoothGattCharacteristicList.addAll(bluetoothGattCharacteristicList);
@@ -257,7 +258,7 @@ public class BluetoothLeService extends Service {
                     case "4006":
                         intentString = "IDLE_CURRENT";
                         break;
-                        //4007 is power on, not useful
+                    //4007 is power on, not useful
                     case "4008": //
                         intentString = "ONLY_BALANCE_WHEN_CHARGING";
                         break;
@@ -266,17 +267,20 @@ public class BluetoothLeService extends Service {
                 intent.putExtra(intentString, data);
                 sendBroadcast(intent);
                 //tempBluetoothGattCharacteristicList.remove(tempBluetoothGattCharacteristicList.get(tempBluetoothGattCharacteristicList.size() - 1));
-                if(readingHomefragmentCharacteristics) {
+                if (readingHomefragmentCharacteristics) {
                     tempHomefragmentBluetoothGattCharacteristicList.remove(tempHomefragmentBluetoothGattCharacteristicList.get(tempHomefragmentBluetoothGattCharacteristicList.size() - 1));
-
+                    //logQuick("removing 1 read item from list");
+                    //logQuick("size of homefraglist: " + tempHomefragmentBluetoothGattCharacteristicList.size());
                     if (!tempHomefragmentBluetoothGattCharacteristicList.isEmpty()) {
                         requestHomefragmentCharacteristics();
                     } else {
                         logQuick("all homefrag chars read");
                         readingHomefragmentCharacteristics = false;
+
                         tempHomefragmentBluetoothGattCharacteristicList.addAll(homefragmentBluetoothGattCharacteristicList);
                     }
-                } else if(readingSettingsfragmentCharacteristics) {
+                } else if (readingSettingsfragmentCharacteristics) {
+
                     tempSettingsfragmentBluetoothGattCharacteristicList.remove(tempSettingsfragmentBluetoothGattCharacteristicList.get(tempSettingsfragmentBluetoothGattCharacteristicList.size() - 1));
 
                     if (!tempSettingsfragmentBluetoothGattCharacteristicList.isEmpty()) {
@@ -310,6 +314,7 @@ public class BluetoothLeService extends Service {
         logQuick("request chars");
         bluetoothGatt.readCharacteristic(tempBluetoothGattCharacteristicList.get(tempBluetoothGattCharacteristicList.size() - 1));
     }
+
     public void requestHomefragmentCharacteristics() {
         if (ActivityCompat.checkSelfPermission(this, android.Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
             return;
@@ -317,12 +322,24 @@ public class BluetoothLeService extends Service {
         logQuick("request homefrag chars");
         bluetoothGatt.readCharacteristic(tempHomefragmentBluetoothGattCharacteristicList.get(tempHomefragmentBluetoothGattCharacteristicList.size() - 1));
     }
+
     public void requestSettingsfragmentCharacteristics() {
         if (ActivityCompat.checkSelfPermission(this, android.Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
             return;
         }
         logQuick(" request settingsfrag chars");
         bluetoothGatt.readCharacteristic(tempSettingsfragmentBluetoothGattCharacteristicList.get(tempSettingsfragmentBluetoothGattCharacteristicList.size() - 1));
+    }
+
+    public void readCharacteristic(String uuid) {
+        BluetoothGattCharacteristic characteristic = getCharacteristicByUUID(uuid);
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
+            return;
+        }
+        bluetoothGatt.readCharacteristic(characteristic);
+    }
+    public boolean getConnectionStatus() {
+        return isConnected;
     }
 
     public BluetoothGatt getBluetoothGatt() {
@@ -343,6 +360,7 @@ public class BluetoothLeService extends Service {
         }
 
          */
+        logQuick("char list size: " + bluetoothGattCharacteristicList.size());
         for (BluetoothGattCharacteristic characteristic : bluetoothGattCharacteristicList) {
             if (characteristic.getUuid().toString().startsWith(uuid, 4)) {
                 return characteristic;
@@ -390,9 +408,11 @@ public class BluetoothLeService extends Service {
             return;
         }
         logQuick("uuid: " + uuid);
-        logQuick("val:" + value[0]);
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            bluetoothGatt.writeCharacteristic(Objects.requireNonNull(getCharacteristicByUUID(uuid)), value, BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT);
+        for(int i = 0; i < value.length; i++) {
+            logQuick("val byte "+i+1+" :" + value[i]);
         }
+        //if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            bluetoothGatt.writeCharacteristic(Objects.requireNonNull(getCharacteristicByUUID(uuid)), value, BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT);
+        //}
     }
 }

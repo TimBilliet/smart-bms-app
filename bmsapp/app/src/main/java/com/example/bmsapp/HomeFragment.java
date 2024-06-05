@@ -119,7 +119,6 @@ public class HomeFragment extends Fragment{
                     } else {
                         data[0] = 1;
                     }
-
                 }
                 bluetoothLeService.writeCharacteristic("3005", data);
             }
