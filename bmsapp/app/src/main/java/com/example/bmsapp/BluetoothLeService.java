@@ -3,6 +3,7 @@ package com.example.bmsapp;
 import static android.app.PendingIntent.getActivity;
 
 import android.Manifest;
+import android.app.AlertDialog;
 import android.app.Service;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
@@ -55,10 +56,11 @@ public class BluetoothLeService extends Service {
     private List<BluetoothGattCharacteristic> settingsfragmentBluetoothGattCharacteristicList = new ArrayList<>();
     private List<BluetoothGattCharacteristic> tempHomefragmentBluetoothGattCharacteristicList = new ArrayList<>();
     private List<BluetoothGattCharacteristic> tempSettingsfragmentBluetoothGattCharacteristicList = new ArrayList<>();
-    private List<BluetoothGattCharacteristic> characteristicsToWriteList = new ArrayList<>();
+    private List<BluetoothGattDescriptor> characteristicsToGetNotificationsOnList = new ArrayList<>();
     private boolean readingHomefragmentCharacteristics = false;
     private boolean readingSettingsfragmentCharacteristics = false;
     private boolean isHomefragment = false;
+    private boolean characterisitcsReadFirstTime = false;
 
     public class LocalBinder extends Binder {
         BluetoothLeService getService() {
@@ -98,7 +100,8 @@ public class BluetoothLeService extends Service {
                     logQuick(String.valueOf(updateInterval));
                     // readAllCharacteristics();
 
-                    readCharacteristicsForHomefragment();
+                    //readCharacteristicsForHomefragment();
+                    requestHomefragmentCharacteristics();
                     handler.postDelayed(this, updateInterval);
                 }
 
@@ -159,23 +162,44 @@ public class BluetoothLeService extends Service {
         if (ActivityCompat.checkSelfPermission(getApplicationContext(), Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
             return;
         }
-        UUID uuid = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb");
+
+        UUID cccdUuid = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb");
         BluetoothGattCharacteristic balancingCharacteristic = getCharacteristicByUUID("3005");
         BluetoothGattCharacteristic chargingCharacteristic = getCharacteristicByUUID("3006");
-        balancingCharacteristic.setWriteType(BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE);
-        chargingCharacteristic.setWriteType(BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE);
+        BluetoothGattCharacteristic faultCharacterisitc = getCharacteristicByUUID("3007");
+       // balancingCharacteristic.setWriteType(BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT);
+       // chargingCharacteristic.setWriteType(BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT);
+        //faultCharacterisitc.setWriteType();
+
+
         bluetoothGatt.setCharacteristicNotification(balancingCharacteristic, true);
         bluetoothGatt.setCharacteristicNotification(chargingCharacteristic, true);
-        BluetoothGattDescriptor balancingDescriptor = balancingCharacteristic.getDescriptor(uuid);
-        BluetoothGattDescriptor chargingDescriptor = chargingCharacteristic.getDescriptor(uuid);
-        if(balancingDescriptor == null) {
-            logQuick("balancedesc null");
-        }
+        bluetoothGatt.setCharacteristicNotification(faultCharacterisitc, true);
+        BluetoothGattDescriptor balancingDescriptor = balancingCharacteristic.getDescriptor(cccdUuid);
+        BluetoothGattDescriptor chargingDescriptor = chargingCharacteristic.getDescriptor(cccdUuid);
+        BluetoothGattDescriptor faultDescriptor = faultCharacterisitc.getDescriptor(cccdUuid);
+        characteristicsToGetNotificationsOnList.add(balancingDescriptor);
+        characteristicsToGetNotificationsOnList.add(chargingDescriptor);
+        characteristicsToGetNotificationsOnList.add(faultDescriptor);
 
         balancingDescriptor.setValue(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE);
         chargingDescriptor.setValue(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE);
-        bluetoothGatt.writeDescriptor(balancingDescriptor);
-        bluetoothGatt.writeDescriptor(chargingDescriptor);
+        faultDescriptor.setValue(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE);
+
+        writeDescriptor();
+        //bluetoothGatt.writeDescriptor(balancingDescriptor);
+        //bluetoothGatt.writeDescriptor(chargingDescriptor);
+    }
+
+
+    public void writeDescriptor() {
+        if (ActivityCompat.checkSelfPermission(this, android.Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
+            return;
+        }
+        logQuick("request homefrag chars");
+        if(!characteristicsToGetNotificationsOnList.isEmpty()) {
+            bluetoothGatt.writeDescriptor(characteristicsToGetNotificationsOnList.get(characteristicsToGetNotificationsOnList.size() -1 ));
+        }
     }
     public void logQuick(String message) {
         Log.d(TAG, message);
@@ -239,12 +263,40 @@ public class BluetoothLeService extends Service {
                 tempSettingsfragmentBluetoothGattCharacteristicList.addAll(settingsfragmentBluetoothGattCharacteristicList);
                 tempBluetoothGattCharacteristicList.addAll(bluetoothGattCharacteristicList);
                 //readAllCharacteristics();
-                readCharacteristicsForHomefragment();
-                readCharacteristicsForSettingsfragment();
+               // readCharacteristicsForHomefragment();
 
+                //only 1 of the 2 works cuz they block eachother
+                //requestHomefragmentCharacteristics();
+                subscribeToNotifications();
+               // readCharacteristicsForSettingsfragment();
             }
         }
+        @Override
+        public void onDescriptorWrite (BluetoothGatt gatt, BluetoothGattDescriptor descriptor, int status) {
+            logQuick("descriptor write");
+            characteristicsToGetNotificationsOnList.remove(characteristicsToGetNotificationsOnList.get(characteristicsToGetNotificationsOnList.size()-1));
+            if(!characteristicsToGetNotificationsOnList.isEmpty()) {
+                writeDescriptor();
+            } else {
+                logQuick("all descriptors written");
+            }
+        }
+        @Override
+        public void onCharacteristicChanged(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic) {
+            //broadcastUpdate(ACTION_DATA_AVAILABLE, characteristic);
+            logQuick("notify received from: " + characteristic.getUuid().toString());
+            byte[] value = characteristic.getValue();
+            byte faultcode = value[0];
+/*
+            new AlertDialog.Builder(getApplicationContext())
+                    .setTitle("ERROR")
+                    .setMessage("Fault code: " + faultcode)
+                    .setPositiveButton("ok", null)
+                    .setIcon(android.R.drawable.ic_dialog_alert)
+                    .show();
 
+ */
+        }
         @Override
         public void onCharacteristicRead(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, int status) {
             String uuid = characteristic.getUuid().toString().substring(4, 8);
@@ -252,7 +304,6 @@ public class BluetoothLeService extends Service {
                 byte[] data = characteristic.getValue();
                 Intent intent = new Intent(uuid);
                 intent.putExtra(uuid, data);
-                logQuick("uuid: "+uuid);
                 sendBroadcast(intent);
                 //tempBluetoothGattCharacteristicList.remove(tempBluetoothGattCharacteristicList.get(tempBluetoothGattCharacteristicList.size() - 1));
                 if (readingHomefragmentCharacteristics) {
@@ -266,6 +317,7 @@ public class BluetoothLeService extends Service {
                         readingHomefragmentCharacteristics = false;
 
                         tempHomefragmentBluetoothGattCharacteristicList.addAll(homefragmentBluetoothGattCharacteristicList);
+                        logQuick("size of homefraglist:" + homefragmentBluetoothGattCharacteristicList.size());
                     }
                 } else if (readingSettingsfragmentCharacteristics) {
 
@@ -307,6 +359,7 @@ public class BluetoothLeService extends Service {
         if (ActivityCompat.checkSelfPermission(this, android.Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
             return;
         }
+        readingHomefragmentCharacteristics = true;
         logQuick("request homefrag chars");
         if(!tempHomefragmentBluetoothGattCharacteristicList.isEmpty()) {
             bluetoothGatt.readCharacteristic(tempHomefragmentBluetoothGattCharacteristicList.get(tempHomefragmentBluetoothGattCharacteristicList.size() - 1));
@@ -386,7 +439,7 @@ public class BluetoothLeService extends Service {
         }
         logQuick("uuid: " + uuid);
         for(int i = 0; i < value.length; i++) {
-            logQuick("val byte "+i+1+" :" + value[i]);
+            //logQuick("val byte "+i+1+" :" + value[i]);
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             bluetoothGatt.writeCharacteristic(Objects.requireNonNull(getCharacteristicByUUID(uuid)), value, BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT);
