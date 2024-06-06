@@ -311,7 +311,9 @@ public class BluetoothLeService extends Service {
             return;
         }
         logQuick("request homefrag chars");
-        bluetoothGatt.readCharacteristic(tempHomefragmentBluetoothGattCharacteristicList.get(tempHomefragmentBluetoothGattCharacteristicList.size() - 1));
+        if(!tempHomefragmentBluetoothGattCharacteristicList.isEmpty()) {
+            bluetoothGatt.readCharacteristic(tempHomefragmentBluetoothGattCharacteristicList.get(tempHomefragmentBluetoothGattCharacteristicList.size() - 1));
+        }
     }
 
     public void requestSettingsfragmentCharacteristics() {

@@ -254,9 +254,9 @@ public class HomeFragment extends Fragment{
     @RequiresApi(api = Build.VERSION_CODES.TIRAMISU)
     @Override
     public void onResume() {
-        logQuick("ONRESUME ZEGZG");
-
+        logQuick("onresume homefrag");
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            requireActivity().registerReceiver(bleUpdateReceiver, new IntentFilter("CONNECTION_STATE_CHANGED"), Context.RECEIVER_NOT_EXPORTED);
             requireActivity().registerReceiver(bleUpdateReceiver, new IntentFilter("3001"), Context.RECEIVER_NOT_EXPORTED);
             requireActivity().registerReceiver(bleUpdateReceiver, new IntentFilter("3002"), Context.RECEIVER_NOT_EXPORTED);
             requireActivity().registerReceiver(bleUpdateReceiver, new IntentFilter("3003"), Context.RECEIVER_NOT_EXPORTED);
@@ -264,6 +264,11 @@ public class HomeFragment extends Fragment{
             requireActivity().registerReceiver(bleUpdateReceiver, new IntentFilter("3006"), Context.RECEIVER_NOT_EXPORTED);
             requireActivity().registerReceiver(bleUpdateReceiver, new IntentFilter("4008"), Context.RECEIVER_NOT_EXPORTED);
         }
+        super.onResume();
+    }
+    @Override
+    public void onAttach(@NonNull Context context) {
+        logQuick("onattach homefrag");
         MainActivity activity = (MainActivity) requireActivity();
         if(activity.getBluetoothservice() != null) {
             bluetoothLeService = activity.getBluetoothservice();
@@ -271,7 +276,11 @@ public class HomeFragment extends Fragment{
             //bluetoothLeService.readAllCharacteristics();
             bluetoothLeService.readCharacteristicsForHomefragment();
         }
-        super.onResume();
+        if(bluetoothLeService != null) {
+            bluetoothLeService.setIsHomefragment(true);
+            bluetoothLeService.runUpdateTimer();
+        }
+        super.onAttach(context);
     }
     @Override
     public void onPause() {
