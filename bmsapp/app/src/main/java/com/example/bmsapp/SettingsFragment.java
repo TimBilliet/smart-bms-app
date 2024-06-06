@@ -59,6 +59,7 @@ public class SettingsFragment extends PreferenceFragmentCompat {
         if(mainActivity.getBluetoothservice() != null) {
             bluetoothLeService = mainActivity.getBluetoothservice();
             isConnected = bluetoothLeService.getConnectionStatus();
+            bluetoothLeService.setIsHomefragment(false);
         }
         super.onAttach(context);
     }
@@ -80,7 +81,7 @@ public class SettingsFragment extends PreferenceFragmentCompat {
         maximumCellVoltageDifferencePreference = findPreference("max_cell_voltage_diff");
         idleCurrentPreference = findPreference("idle_current_threshold");
         sharedPreferences = PreferenceManager.getDefaultSharedPreferences(requireActivity());
-
+        //PreferenceManager.setDefaultValues(requireContext(), R.xml.root_preferences, false);
         if (macAddressPreference != null) {
             macAddressPreference.setPositiveButtonText("Connect");
             macAddressPreference.setOnBindEditTextListener(editText -> editText.setHint("AA:AA:AA:AA:AA:AA"));
@@ -261,7 +262,7 @@ public class SettingsFragment extends PreferenceFragmentCompat {
         }
 
         //bluetoothLeService.readAllCharacteristics();
-        bluetoothLeService.readCharacteristicsForSettingsfragment();
+        //bluetoothLeService.readCharacteristicsForSettingsfragment();
     }
 
     private BroadcastReceiver bleUpdateReceiver = new BroadcastReceiver() {
@@ -283,39 +284,39 @@ public class SettingsFragment extends PreferenceFragmentCompat {
                         showDialog("Connected to: " + macAddress);
                     }
                     break;
-                case "SHUNT_RESISTOR":
-                    data = intent.getByteArrayExtra("SHUNT_RESISTOR");
+                case "4001":
+                    data = intent.getByteArrayExtra("4001");
                     shuntResistorPreference.setText(String.valueOf(data[0]));
                     break;
-                case "OVERCURRENT":
-                    data = intent.getByteArrayExtra("OVERCURRENT");
+                case "4002":
+                    data = intent.getByteArrayExtra("4002");
                     int current = ((data[0] & 0xFF) << 8) | (data[1] & 0xFF);
                     overChargeCurrentPreference.setText(String.valueOf(current));
                     break;
-                case "UNDERVOLT":
-                    data = intent.getByteArrayExtra("UNDERVOLT");
+                case "4003":
+                    data = intent.getByteArrayExtra("4003");
                     int undervolt = ((data[0] & 0xFF) << 8) | (data[1] & 0xFF);
                     underVoltagePreference.setText(String.valueOf(undervolt));
                     break;
-                case "OVERVOLT":
-                    data = intent.getByteArrayExtra("OVERVOLT");
+                case "4004":
+                    data = intent.getByteArrayExtra("4004");
                     int overvolt = ((data[0] & 0xFF) << 8) | (data[1] & 0xFF);
                     overVoltagePreference.setText(String.valueOf(overvolt));
                     break;
-                case "BALANCING_THRESHOLDS":
-                    data = intent.getByteArrayExtra("BALANCING_THRESHOLDS");
+                case "4005":
+                    data = intent.getByteArrayExtra("4005");
                     int minBalancingVoltage = ((data[0] & 0xFF) << 8) | (data[1] & 0xFF);
                     int maxVoltageDifference = ((data[2] & 0xFF) << 8) | (data[3] & 0xFF);
                     minimumBalanceVoltagePreference.setText(String.valueOf(minBalancingVoltage));
                     maximumCellVoltageDifferencePreference.setText(String.valueOf(maxVoltageDifference));
                     break;
-                case "IDLE_CURRENT":
-                    data = intent.getByteArrayExtra("IDLE_CURRENT");
+                case "4006":
+                    data = intent.getByteArrayExtra("4006");
                     int idleCurrent = ((data[0] & 0xFF) << 8) | (data[1] & 0xFF);
                     idleCurrentPreference.setText(String.valueOf(idleCurrent));
                     break;
-                case "ONLY_BALANCE_WHEN_CHARGING":
-                    data = intent.getByteArrayExtra("ONLY_BALANCE_WHEN_CHARGING");
+                case "4008":
+                    data = intent.getByteArrayExtra("4008");
                     boolean checked = data[0] != 0;
                     onlyBalanceWhileChargingPreference.setChecked(checked);
                     break;
@@ -365,17 +366,15 @@ public class SettingsFragment extends PreferenceFragmentCompat {
     @Override
     public void onResume() {
         super.onResume();
-
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             requireActivity().registerReceiver(bleUpdateReceiver, new IntentFilter("CONNECTION_STATE_CHANGED"), Context.RECEIVER_NOT_EXPORTED);
-            requireActivity().registerReceiver(bleUpdateReceiver, new IntentFilter("SHUNT_RESISTOR"), Context.RECEIVER_NOT_EXPORTED);
-            requireActivity().registerReceiver(bleUpdateReceiver, new IntentFilter("OVERCURRENT"), Context.RECEIVER_NOT_EXPORTED);
-            requireActivity().registerReceiver(bleUpdateReceiver, new IntentFilter("UNDERVOLT"), Context.RECEIVER_NOT_EXPORTED);
-            requireActivity().registerReceiver(bleUpdateReceiver, new IntentFilter("OVERVOLT"), Context.RECEIVER_NOT_EXPORTED);
-            requireActivity().registerReceiver(bleUpdateReceiver, new IntentFilter("BALANCING_THRESHOLDS"), Context.RECEIVER_NOT_EXPORTED);
-            requireActivity().registerReceiver(bleUpdateReceiver, new IntentFilter("IDLE_CURRENT"), Context.RECEIVER_NOT_EXPORTED);
-            requireActivity().registerReceiver(bleUpdateReceiver, new IntentFilter("ONLY_BALANCE_WHEN_CHARGING"), Context.RECEIVER_NOT_EXPORTED);
-
+            requireActivity().registerReceiver(bleUpdateReceiver, new IntentFilter("4001"), Context.RECEIVER_NOT_EXPORTED);
+            requireActivity().registerReceiver(bleUpdateReceiver, new IntentFilter("4002"), Context.RECEIVER_NOT_EXPORTED);
+            requireActivity().registerReceiver(bleUpdateReceiver, new IntentFilter("4003"), Context.RECEIVER_NOT_EXPORTED);
+            requireActivity().registerReceiver(bleUpdateReceiver, new IntentFilter("4004"), Context.RECEIVER_NOT_EXPORTED);
+            requireActivity().registerReceiver(bleUpdateReceiver, new IntentFilter("4005"), Context.RECEIVER_NOT_EXPORTED);
+            requireActivity().registerReceiver(bleUpdateReceiver, new IntentFilter("4006"), Context.RECEIVER_NOT_EXPORTED);
+            requireActivity().registerReceiver(bleUpdateReceiver, new IntentFilter("4008"), Context.RECEIVER_NOT_EXPORTED);
         }
     }
 

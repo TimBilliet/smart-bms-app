@@ -101,7 +101,7 @@ public class MainActivity extends AppCompatActivity {
         thisActivity = this;
         binding = ActivityMainBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
-
+        PreferenceManager.setDefaultValues(this, R.xml.root_preferences, false);
         setSupportActionBar(binding.toolbar);
         navController = Navigation.findNavController(this, R.id.nav_host_fragment_content_main);
         appBarConfiguration = new AppBarConfiguration.Builder(navController.getGraph()).build();

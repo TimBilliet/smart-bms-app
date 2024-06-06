@@ -11,6 +11,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.ServiceConnection;
+import android.content.SharedPreferences;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
@@ -34,6 +35,7 @@ import androidx.annotation.NonNull;
 import androidx.annotation.RequiresApi;
 import androidx.fragment.app.Fragment;
 import androidx.navigation.fragment.NavHostFragment;
+import androidx.preference.PreferenceManager;
 
 import com.example.bmsapp.databinding.FragmentHomeBinding;
 
@@ -62,6 +64,7 @@ public class HomeFragment extends Fragment{
     private final Handler handlerToast = new Handler(Looper.getMainLooper());
     private BluetoothLeService bluetoothLeService;
     private boolean isServiceBound = false;
+    private boolean isConnected;
     private  boolean onlyBalanceWhenCharging;
 
     @Override
@@ -147,71 +150,78 @@ public class HomeFragment extends Fragment{
             DecimalFormat df = new DecimalFormat("#.##");
             df.setRoundingMode(RoundingMode.CEILING);
             String action = intent.getAction();
+            logQuick("action: " + action);
+            byte[] data;
+            boolean state;
             long start = 0;
-            if ("PACK_VOLTAGE".equals(action)) {
-                byte[] data = intent.getByteArrayExtra("PACK_VOLTAGE");
-                int batVoltagemv = ((data[0] & 0xFF) << 8) | (data[1] & 0xFF);
-                double batVoltagev = batVoltagemv / 1000.0;
-                textViewBatVoltage.setText(df.format(batVoltagev));
-            } else if("CELL_VOLTAGES".equals(action)) {
-                byte[] data = intent.getByteArrayExtra("CELL_VOLTAGES");
-                int lowestVoltage = Integer.MAX_VALUE;
-                int highestVoltage = Integer.MIN_VALUE;
-                for (int i = 0; i < 10; i++) {
-                    start = System.currentTimeMillis();
-                    int index = i*2;
-                    byte msb = data[index];
-                    byte lsb = data[index + 1];
-                    int cellVoltage = ((msb << 8) | lsb);
-                    if(cellVoltage < lowestVoltage) {
-                        lowestVoltage = cellVoltage;
-                    } else if(cellVoltage > highestVoltage) {
-                        highestVoltage = cellVoltage;
+            switch (Objects.requireNonNull(action)) {
+                case "CONNECTION_STATE_CHANGED":
+                    if(intent.getBooleanExtra("CONNECTION_STATE_CHANGED", false)) {
+                        isConnected = true;
+                        bluetoothLeService.setIsHomefragment(true);
                     }
-                    progressBarCellList.get(i).setProgress(cellVoltage);
-                    textViewCellVoltagesList.get(i).setText(String.format("%.3f", cellVoltage / 1000.0));
-                }
-                int difference = highestVoltage - lowestVoltage;
-                String differenceString = difference + "mV";
-                textViewVoltageDifference.setText(differenceString);
-                String voltageRange = String.format("%sV-%sV",
-                        df.format(lowestVoltage / 1000.0),
-                        df.format(highestVoltage / 1000.0));
-                textViewVoltageRange.setText(voltageRange);
-                long end = System.currentTimeMillis();
-                //logQuick("Time taken: " + (end - start) + "ms");
-            } else if("CELL_BALANCING_STATE".equals(action)) {
-                byte[] data = intent.getByteArrayExtra("CELL_BALANCING_STATE");
-                for(int i = 0; i < 10; i++) {
-                    int balancingState = data[i];
-                    if(balancingState == 1) {
-                        textViewCellBalancingStateList.get(i).setText("B");
-                    } else {
-                        textViewCellBalancingStateList.get(i).setText("");
+                    break;
+                case "3001":  // pack voltage and charge current
+                    data = intent.getByteArrayExtra("3001");
+                    int batVoltagemv = ((data[0] & 0xFF) << 8) | (data[1] & 0xFF);
+                    double batVoltagev = batVoltagemv / 1000.0;
+                    textViewBatVoltage.setText(df.format(batVoltagev));
+                    break;
+                case "3002":  // cell voltages
+                    data = intent.getByteArrayExtra("3002");
+                    int lowestVoltage = Integer.MAX_VALUE;
+                    int highestVoltage = Integer.MIN_VALUE;
+                    for (int i = 0; i < 10; i++) {
+                        int index = i * 2;
+                        byte msb = data[index];
+                        byte lsb = data[index + 1];
+                        int cellVoltage = ((msb << 8) | (lsb & 0xFF));
+                        if (cellVoltage < lowestVoltage) {
+                            lowestVoltage = cellVoltage;
+                        } else if (cellVoltage > highestVoltage) {
+                            highestVoltage = cellVoltage;
+                        }
+                        progressBarCellList.get(i).setProgress(cellVoltage);
+                        textViewCellVoltagesList.get(i).setText(String.format("%.3f", cellVoltage / 1000.0));
                     }
-                }
-            } else if("CHARGE_CURRENT".equals(action)) {
-                byte[] data = intent.getByteArrayExtra("CHARGE_CURRENT");
-                int chargeCurrentmA = ((data[0] & 0xFF) << 8) | (data[1] & 0xFF);
-                chargeCurrentA = chargeCurrentmA / 1000.0;
-                textViewCurrent.setText(df.format(chargeCurrentA));
-
-            } else if("ENABLE_BALANCING".equals(action)) {
-                byte[] data = intent.getByteArrayExtra("ENABLE_BALANCING");
-                boolean state = data[0] != 0;
-                enableBalancingSwitch.setChecked(state);
-            } else if("ENABLE_CHARGING".equals(action)) {
-                byte[] data = intent.getByteArrayExtra("ENABLE_CHARGING");
-                boolean state = data[0] != 0;
-                enableChargingSwitch.setChecked(state);
-            } else if("IS_CONNECTED".equals(action)) {
-                logQuick("received broadcast of connection in homefrag");
-            } else if("ONLY_BALANCE_WHEN_CHARGING".equals(action)) {
-               // onlyBalanceWhenCharging
-                byte[] data = intent.getByteArrayExtra("ONLY_BALANCE_WHEN_CHARGING");
-                boolean checked = data[0] != 0;
-                logQuick("only balance when charging: " + checked);
-                onlyBalanceWhenCharging = checked;
+                    int difference = highestVoltage - lowestVoltage;
+                    String differenceString = difference + "mV";
+                    textViewVoltageDifference.setText(differenceString);
+                    String voltageRange = String.format("%sV-%sV",
+                            df.format(lowestVoltage / 1000.0),
+                            df.format(highestVoltage / 1000.0));
+                    textViewVoltageRange.setText(voltageRange);
+                    break;
+                case "3003":  // cell balancing state
+                    data = intent.getByteArrayExtra("3003");
+                    for (int i = 0; i < 10; i++) {
+                        int balancingState = data[i];
+                        if (balancingState == 1) {
+                            textViewCellBalancingStateList.get(i).setText("B");
+                        } else {
+                            textViewCellBalancingStateList.get(i).setText("");
+                        }
+                    }
+                    break;
+                case "3005":  // balancing switch state
+                    data = intent.getByteArrayExtra("3005");
+                    state = data[0] != 0;
+                    enableBalancingSwitch.setChecked(state);
+                    break;
+                case "3006":  // charging switch state
+                    data = intent.getByteArrayExtra("3006");
+                     state = data[0] != 0;
+                    enableChargingSwitch.setChecked(state);
+                    break;
+                 case "4008": // only balance when charging
+                    data = intent.getByteArrayExtra("4008");
+                    boolean checked = data[0] != 0;
+                    logQuick("only balance when charging: " + checked);
+                    onlyBalanceWhenCharging = checked;
+                    break;
+                default:
+                    // Handle unexpected action
+                    break;
             }
         }
     };
@@ -244,15 +254,15 @@ public class HomeFragment extends Fragment{
     @RequiresApi(api = Build.VERSION_CODES.TIRAMISU)
     @Override
     public void onResume() {
-        super.onResume();
+        logQuick("ONRESUME ZEGZG");
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            requireActivity().registerReceiver(bleUpdateReceiver, new IntentFilter("PACK_VOLTAGE"), Context.RECEIVER_NOT_EXPORTED);
-            requireActivity().registerReceiver(bleUpdateReceiver, new IntentFilter("CELL_VOLTAGES"), Context.RECEIVER_NOT_EXPORTED);
-            requireActivity().registerReceiver(bleUpdateReceiver, new IntentFilter("CELL_BALANCING_STATE"), Context.RECEIVER_NOT_EXPORTED);
-            requireActivity().registerReceiver(bleUpdateReceiver, new IntentFilter("CHARGE_CURRENT"), Context.RECEIVER_NOT_EXPORTED);
-            requireActivity().registerReceiver(bleUpdateReceiver, new IntentFilter("ENABLE_CHARGING"), Context.RECEIVER_NOT_EXPORTED);
-            requireActivity().registerReceiver(bleUpdateReceiver, new IntentFilter("ENABLE_BALANCING"), Context.RECEIVER_NOT_EXPORTED);
-            requireActivity().registerReceiver(bleUpdateReceiver, new IntentFilter("ONLY_BALANCE_WHEN_CHARGING"), Context.RECEIVER_NOT_EXPORTED);
+            requireActivity().registerReceiver(bleUpdateReceiver, new IntentFilter("3001"), Context.RECEIVER_NOT_EXPORTED);
+            requireActivity().registerReceiver(bleUpdateReceiver, new IntentFilter("3002"), Context.RECEIVER_NOT_EXPORTED);
+            requireActivity().registerReceiver(bleUpdateReceiver, new IntentFilter("3003"), Context.RECEIVER_NOT_EXPORTED);
+            requireActivity().registerReceiver(bleUpdateReceiver, new IntentFilter("3005"), Context.RECEIVER_NOT_EXPORTED);
+            requireActivity().registerReceiver(bleUpdateReceiver, new IntentFilter("3006"), Context.RECEIVER_NOT_EXPORTED);
+            requireActivity().registerReceiver(bleUpdateReceiver, new IntentFilter("4008"), Context.RECEIVER_NOT_EXPORTED);
         }
         MainActivity activity = (MainActivity) requireActivity();
         if(activity.getBluetoothservice() != null) {
@@ -261,6 +271,7 @@ public class HomeFragment extends Fragment{
             //bluetoothLeService.readAllCharacteristics();
             bluetoothLeService.readCharacteristicsForHomefragment();
         }
+        super.onResume();
     }
     @Override
     public void onPause() {

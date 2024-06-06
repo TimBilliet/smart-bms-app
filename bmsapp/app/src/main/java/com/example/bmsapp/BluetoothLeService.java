@@ -1,5 +1,7 @@
 package com.example.bmsapp;
 
+import static android.app.PendingIntent.getActivity;
+
 import android.Manifest;
 import android.app.Service;
 import android.bluetooth.BluetoothAdapter;
@@ -7,6 +9,7 @@ import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothGatt;
 import android.bluetooth.BluetoothGattCallback;
 import android.bluetooth.BluetoothGattCharacteristic;
+import android.bluetooth.BluetoothGattDescriptor;
 import android.bluetooth.BluetoothGattService;
 import android.bluetooth.BluetoothManager;
 import android.bluetooth.BluetoothProfile;
@@ -23,6 +26,7 @@ import android.util.Log;
 import android.widget.Toast;
 
 import androidx.core.app.ActivityCompat;
+import androidx.fragment.app.Fragment;
 import androidx.preference.PreferenceManager;
 
 import java.math.RoundingMode;
@@ -51,8 +55,10 @@ public class BluetoothLeService extends Service {
     private List<BluetoothGattCharacteristic> settingsfragmentBluetoothGattCharacteristicList = new ArrayList<>();
     private List<BluetoothGattCharacteristic> tempHomefragmentBluetoothGattCharacteristicList = new ArrayList<>();
     private List<BluetoothGattCharacteristic> tempSettingsfragmentBluetoothGattCharacteristicList = new ArrayList<>();
+    private List<BluetoothGattCharacteristic> characteristicsToWriteList = new ArrayList<>();
     private boolean readingHomefragmentCharacteristics = false;
     private boolean readingSettingsfragmentCharacteristics = false;
+    private boolean isHomefragment = false;
 
     public class LocalBinder extends Binder {
         BluetoothLeService getService() {
@@ -87,10 +93,11 @@ public class BluetoothLeService extends Service {
         runnable = new Runnable() {
             @Override
             public void run() {
-                if (updateInterval > 0) {
+                if (updateInterval > 0 && isHomefragment) {
                     logQuick("Timer");
                     logQuick(String.valueOf(updateInterval));
                     // readAllCharacteristics();
+
                     readCharacteristicsForHomefragment();
                     handler.postDelayed(this, updateInterval);
                 }
@@ -98,6 +105,10 @@ public class BluetoothLeService extends Service {
             }
         };
         return true;
+    }
+
+    public void setIsHomefragment(boolean isHomefragment) {
+        this.isHomefragment = isHomefragment;
     }
 
     public boolean connect(final String address) {
@@ -144,7 +155,28 @@ public class BluetoothLeService extends Service {
             handler.removeCallbacks(runnable);
         }
     }
+    private void subscribeToNotifications() {
+        if (ActivityCompat.checkSelfPermission(getApplicationContext(), Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
+            return;
+        }
+        UUID uuid = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb");
+        BluetoothGattCharacteristic balancingCharacteristic = getCharacteristicByUUID("3005");
+        BluetoothGattCharacteristic chargingCharacteristic = getCharacteristicByUUID("3006");
+        balancingCharacteristic.setWriteType(BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE);
+        chargingCharacteristic.setWriteType(BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE);
+        bluetoothGatt.setCharacteristicNotification(balancingCharacteristic, true);
+        bluetoothGatt.setCharacteristicNotification(chargingCharacteristic, true);
+        BluetoothGattDescriptor balancingDescriptor = balancingCharacteristic.getDescriptor(uuid);
+        BluetoothGattDescriptor chargingDescriptor = chargingCharacteristic.getDescriptor(uuid);
+        if(balancingDescriptor == null) {
+            logQuick("balancedesc null");
+        }
 
+        balancingDescriptor.setValue(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE);
+        chargingDescriptor.setValue(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE);
+        bluetoothGatt.writeDescriptor(balancingDescriptor);
+        bluetoothGatt.writeDescriptor(chargingDescriptor);
+    }
     public void logQuick(String message) {
         Log.d(TAG, message);
     }
@@ -152,7 +184,6 @@ public class BluetoothLeService extends Service {
     private final BluetoothGattCallback gattCallback = new BluetoothGattCallback() {
         @Override
         public void onConnectionStateChange(BluetoothGatt gatt, int status, int newState) {
-
             if (newState == BluetoothProfile.STATE_CONNECTED) {
                 Log.i(TAG, "Connected to GATT server.");
                 if (ActivityCompat.checkSelfPermission(getApplicationContext(), android.Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
@@ -187,9 +218,7 @@ public class BluetoothLeService extends Service {
                             Log.i(TAG, "Found Characteristic: " + mCharacteristic.getUuid().toString());
                             bluetoothGattCharacteristicList.add(mCharacteristic);
                             if (mCharacteristic.getUuid().toString().startsWith("3001", 4) || mCharacteristic.getUuid().toString().startsWith("3002", 4)
-                                    || mCharacteristic.getUuid().toString().startsWith("3003", 4) || mCharacteristic.getUuid().toString().startsWith("3004", 4)
-                                    || mCharacteristic.getUuid().toString().startsWith("3005", 4) || mCharacteristic.getUuid().toString().startsWith("3006", 4)
-                                    || mCharacteristic.getUuid().toString().startsWith("4008", 4)) {
+                                    || mCharacteristic.getUuid().toString().startsWith("3003", 4) || mCharacteristic.getUuid().toString().startsWith("4008", 4)) {
                                 homefragmentBluetoothGattCharacteristicList.add(mCharacteristic);
                             }
                             if (mCharacteristic.getUuid().toString().startsWith("4001", 4) || mCharacteristic.getUuid().toString().startsWith("4002", 4)
@@ -202,6 +231,7 @@ public class BluetoothLeService extends Service {
                     }
                     logQuick("onServicesDiscovered UUID: " + gattService.getUuid().toString());
                 }
+               // subscribeToNotifications();
                 logQuick("size of homefrag list" + homefragmentBluetoothGattCharacteristicList.size());
                 logQuick("size of settingsfrag list" + settingsfragmentBluetoothGattCharacteristicList.size());
                 // logQuick("size of all chars list: " + bluetoothGattCharacteristicList.size());
@@ -211,60 +241,21 @@ public class BluetoothLeService extends Service {
                 //readAllCharacteristics();
                 readCharacteristicsForHomefragment();
                 readCharacteristicsForSettingsfragment();
+
             }
         }
 
+
+
+        //public void ov
         @Override
         public void onCharacteristicRead(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, int status) {
             String uuid = characteristic.getUuid().toString().substring(4, 8);
             if (status == BluetoothGatt.GATT_SUCCESS) {
-                Intent intent = null;
                 byte[] data = characteristic.getValue();
-                String intentString = "";
-                switch (uuid) {
-                    case "3001":  // battery pack voltage read
-                        intentString = "PACK_VOLTAGE";
-                        break;
-                    case "3002":  // cell voltages read
-                        intentString = "CELL_VOLTAGES";
-                        break;
-                    case "3003":  // cell balancing state read
-                        intentString = "CELL_BALANCING_STATE";
-                        break;
-                    case "3004": // charge current read
-                        intentString = "CHARGE_CURRENT";
-                        break;
-                    case "3005": // balancing enabled read
-                        intentString = "ENABLE_BALANCING";
-                        break;
-                    case "3006": // charging enabled read
-                        intentString = "ENABLE_CHARGING";
-                        break;
-                    case "4001":
-                        intentString = "SHUNT_RESISTOR";
-                        break;
-                    case "4002":
-                        intentString = "OVERCURRENT";
-                        break;
-                    case "4003":
-                        intentString = "UNDERVOLT";
-                        break;
-                    case "4004":
-                        intentString = "OVERVOLT";
-                        break;
-                    case "4005":
-                        intentString = "BALANCING_THRESHOLDS";
-                        break;
-                    case "4006":
-                        intentString = "IDLE_CURRENT";
-                        break;
-                    //4007 is power on, not useful
-                    case "4008": //
-                        intentString = "ONLY_BALANCE_WHEN_CHARGING";
-                        break;
-                }
-                intent = new Intent(intentString);
-                intent.putExtra(intentString, data);
+                Intent intent = new Intent(uuid);
+                intent.putExtra(uuid, data);
+                logQuick("uuid: "+uuid);
                 sendBroadcast(intent);
                 //tempBluetoothGattCharacteristicList.remove(tempBluetoothGattCharacteristicList.get(tempBluetoothGattCharacteristicList.size() - 1));
                 if (readingHomefragmentCharacteristics) {
@@ -411,8 +402,8 @@ public class BluetoothLeService extends Service {
         for(int i = 0; i < value.length; i++) {
             logQuick("val byte "+i+1+" :" + value[i]);
         }
-        //if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             bluetoothGatt.writeCharacteristic(Objects.requireNonNull(getCharacteristicByUUID(uuid)), value, BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT);
-        //}
+        }
     }
 }
