@@ -66,8 +66,6 @@ public class SettingsFragment extends PreferenceFragmentCompat {
 
     @Override
     public void onCreatePreferences(Bundle savedInstanceState, String rootKey) {
-
-
         logQuick("on create preferences");
         setPreferencesFromResource(R.xml.root_preferences, rootKey);
         macAddressPreference = findPreference("mac_address");

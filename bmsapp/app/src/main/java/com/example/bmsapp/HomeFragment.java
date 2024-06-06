@@ -37,7 +37,6 @@ import androidx.fragment.app.Fragment;
 import androidx.navigation.fragment.NavHostFragment;
 import androidx.preference.PreferenceManager;
 
-import com.example.bmsapp.databinding.FragmentHomeBinding;
 
 import java.math.RoundingMode;
 import java.text.DecimalFormat;
@@ -47,9 +46,7 @@ import java.util.Objects;
 import java.util.UUID;
 
 public class HomeFragment extends Fragment{
-    private View view;
-    private FragmentHomeBinding binding;
-    private BluetoothAdapter bluetoothAdapter;
+
     public static final String TAG = "Homefragment";
     private TextView textViewBatVoltage;
     private TextView textViewCurrent;
@@ -61,11 +58,11 @@ public class HomeFragment extends Fragment{
     private TextView textViewVoltageRange;
     private TextView textViewVoltageDifference;
     private double chargeCurrentA;
+    private SharedPreferences sharedPreferences;
     private final Handler handlerToast = new Handler(Looper.getMainLooper());
     private BluetoothLeService bluetoothLeService;
-    private boolean isServiceBound = false;
     private boolean isConnected;
-    private  boolean onlyBalanceWhenCharging;
+    private  boolean onlyBalanceWhenCharging = true;
 
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
@@ -112,7 +109,7 @@ public class HomeFragment extends Fragment{
                 byte[] data = {0};
                 if(enableBalancingSwitch.isChecked()) {
                     if(onlyBalanceWhenCharging) {
-                        if(chargeCurrentA > 0.05) {
+                        if(chargeCurrentA > 0.02) {
                             data[0] = 1;
                         } else {
                             handlerToast.post(() -> Toast.makeText(requireContext(), "Balancing only allowed while charging", Toast.LENGTH_SHORT).show());
@@ -121,6 +118,7 @@ public class HomeFragment extends Fragment{
                         }
                     } else {
                         data[0] = 1;
+
                     }
                 }
                 bluetoothLeService.writeCharacteristic("3005", data);
@@ -164,8 +162,11 @@ public class HomeFragment extends Fragment{
                 case "3001":  // pack voltage and charge current
                     data = intent.getByteArrayExtra("3001");
                     int batVoltagemv = ((data[0] & 0xFF) << 8) | (data[1] & 0xFF);
+                    int chargeCurrentmA = ((data[2] & 0xFF) << 8) | (data[3] & 0xFF);
                     double batVoltagev = batVoltagemv / 1000.0;
+                    chargeCurrentA = chargeCurrentmA / 1000.0;
                     textViewBatVoltage.setText(df.format(batVoltagev));
+                    textViewCurrent.setText(df.format(chargeCurrentA));
                     break;
                 case "3002":  // cell voltages
                     data = intent.getByteArrayExtra("3002");
@@ -237,13 +238,11 @@ public class HomeFragment extends Fragment{
             } else {
                 bluetoothLeService = binder.getService();
             }
-            isServiceBound = true;
         }
 
         @Override
         public void onServiceDisconnected(ComponentName componentName) {
             bluetoothLeService = null;
-            isServiceBound = false;
             Log.d(TAG, "Service disconnected");
         }
     };
@@ -292,9 +291,4 @@ public class HomeFragment extends Fragment{
         super.onViewCreated(view, savedInstanceState);
     }
 
-    @Override
-    public void onDestroyView() {
-        super.onDestroyView();
-        binding = null;
-    }
 }

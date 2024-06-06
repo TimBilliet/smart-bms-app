@@ -245,9 +245,6 @@ public class BluetoothLeService extends Service {
             }
         }
 
-
-
-        //public void ov
         @Override
         public void onCharacteristicRead(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, int status) {
             String uuid = characteristic.getUuid().toString().substring(4, 8);
@@ -340,19 +337,6 @@ public class BluetoothLeService extends Service {
     }
 
     private BluetoothGattCharacteristic getCharacteristicByUUID(String uuid) {
-        /*
-        for (BluetoothGattCharacteristic characteristic : homefragmentBluetoothGattCharacteristicList) {
-            if (characteristic.getUuid().toString().startsWith(uuid, 4)) {
-                return characteristic;
-            }
-        }
-        for (BluetoothGattCharacteristic characteristic : settingsfragmentBluetoothGattCharacteristicList) {
-            if (characteristic.getUuid().toString().startsWith(uuid, 4)) {
-                return characteristic;
-            }
-        }
-
-         */
         logQuick("char list size: " + bluetoothGattCharacteristicList.size());
         for (BluetoothGattCharacteristic characteristic : bluetoothGattCharacteristicList) {
             if (characteristic.getUuid().toString().startsWith(uuid, 4)) {
