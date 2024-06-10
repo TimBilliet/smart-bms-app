@@ -1,6 +1,7 @@
 package com.example.bmsapp;
 
 import android.app.AlertDialog;
+import android.bluetooth.BluetoothGattDescriptor;
 import android.content.BroadcastReceiver;
 import android.content.ComponentName;
 import android.content.Context;
@@ -38,6 +39,7 @@ public class SettingsFragment extends PreferenceFragmentCompat {
     private boolean isConnected = false;
     private EditTextPreference macAddressPreference;
     private EditTextPreference appUpdateIntervalPreference;
+    private SwitchPreference autoUpdatePreference;
     private SwitchPreference onlyBalanceWhileChargingPreference;
     private EditTextPreference shuntResistorPreference;
     private EditTextPreference overChargeCurrentPreference;
@@ -70,6 +72,7 @@ public class SettingsFragment extends PreferenceFragmentCompat {
         setPreferencesFromResource(R.xml.root_preferences, rootKey);
         macAddressPreference = findPreference("mac_address");
         appUpdateIntervalPreference = findPreference("update_interval");
+        autoUpdatePreference = findPreference("auto_update");
         onlyBalanceWhileChargingPreference = findPreference("only_balance_while_charging");
         shuntResistorPreference = findPreference("shunt_value");
         overChargeCurrentPreference = findPreference("overcharge_current");
@@ -112,6 +115,24 @@ public class SettingsFragment extends PreferenceFragmentCompat {
                     showDialog("Invalid input\nMaximum 3 digits after the decimal point");
                 }
 
+                return true;
+            });
+        }
+        if(autoUpdatePreference != null) {
+            autoUpdatePreference.setOnPreferenceChangeListener((preference, toggle) -> {
+                if(isConnected) {
+                  //  byte[] data = new byte[1];
+                    if ((boolean) toggle) {
+                        logQuick("notifications on");
+                        bluetoothLeService.toggleNotifications(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE);
+                      //  data[0] = 1;
+                    } else {
+                        logQuick("notifications off");
+                        bluetoothLeService.toggleNotifications(BluetoothGattDescriptor.DISABLE_NOTIFICATION_VALUE);
+                    }
+                } else {
+                    handlerToast.post(() -> Toast.makeText(getContext(), "Not connected.", Toast.LENGTH_LONG).show());
+                }
                 return true;
             });
         }
@@ -274,11 +295,11 @@ public class SettingsFragment extends PreferenceFragmentCompat {
                         isConnected = true;
                         bluetoothLeService.runUpdateTimer();
                         //Save mac address so it can be used later to automatically connect
-                        sharedPreferences = PreferenceManager.getDefaultSharedPreferences(requireActivity());
-                        SharedPreferences.Editor editor = sharedPreferences.edit();
-                        editor.putString("mac_address", macAddress);
+                        //sharedPreferences = PreferenceManager.getDefaultSharedPreferences(requireActivity());
+                        //SharedPreferences.Editor editor = sharedPreferences.edit();
+                        //editor.putString("mac_address", macAddress);
                         logQuick(macAddress);
-                        editor.apply();
+                        //editor.apply();
                         showDialog("Connected to: " + macAddress);
                     }
                     break;

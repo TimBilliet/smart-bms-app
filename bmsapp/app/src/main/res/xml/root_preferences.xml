@@ -8,6 +8,14 @@
             app:useSimpleSummaryProvider="true"
             />
 
+        <SwitchPreference
+            app:key="auto_update"
+            app:title="Auto update"
+            app:switchTextOn="ON"
+            app:switchTextOff="OFF"
+            app:summary="Automatically receive new values when they change"
+            />
+
     </PreferenceCategory>
     <PreferenceCategory app:title="BLE settings"
         app:icon="@drawable/baseline_bluetooth_24">
@@ -16,6 +24,7 @@
             app:key="mac_address"
             app:title="BMS MAC address"
             app:useSimpleSummaryProvider="true"
+            app:defaultValue="AA:AA:AA:AA:AA:AA"
             />
 
     </PreferenceCategory>
@@ -27,41 +36,50 @@
             app:title="Only balance while charging"
             app:switchTextOn="ON"
             app:switchTextOff="OFF"
+            app:summary="Only allow balancing of the cells when the battery pack is getting charged"
+            app:defaultValue="true"
             />
         <EditTextPreference
             app:key="shunt_value"
             app:title="Current shunt value(mΩ)"
             app:useSimpleSummaryProvider="true"
+            app:defaultValue="5"
             />
         <EditTextPreference
             app:key="overcharge_current"
             app:title="Overcharge current protection(mA)"
             app:useSimpleSummaryProvider="true"
+            app:defaultValue="10000"
             />
         <EditTextPreference
             app:key="undervolt"
             app:title="Undervoltage level(mV)"
             app:useSimpleSummaryProvider="true"
+            app:defaultValue="3000"
             />
         <EditTextPreference
             app:key="overvolt"
             app:title="Overvoltage protection(mV)"
             app:useSimpleSummaryProvider="true"
+            app:defaultValue="4200"
             />
         <EditTextPreference
             app:key="min_balance_voltage"
             app:title="Minimum balance voltage(mV)"
             app:useSimpleSummaryProvider="true"
+            app:defaultValue="3900"
             />
         <EditTextPreference
             app:key="max_cell_voltage_diff"
             app:title="Max cell voltage differential(mV)"
             app:useSimpleSummaryProvider="true"
+            app:defaultValue="15"
             />
         <EditTextPreference
             app:key="idle_current_threshold"
             app:title="Idle current threshold(mA)"
             app:useSimpleSummaryProvider="true"
+            app:defaultValue="100"
             />
 
 

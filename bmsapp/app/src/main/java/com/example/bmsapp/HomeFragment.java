@@ -139,7 +139,6 @@ public class HomeFragment extends Fragment{
             df.setRoundingMode(RoundingMode.CEILING);
             String action = intent.getAction();
             byte[] data;
-            boolean state;
             long start = 0;
             switch (Objects.requireNonNull(action)) {
                 case "CONNECTION_STATE_CHANGED":
@@ -150,8 +149,8 @@ public class HomeFragment extends Fragment{
                     break;
                 case "3001":  // pack voltage and charge current
                     data = intent.getByteArrayExtra("3001");
-                    int batVoltagemv = ((data[0] & 0xFF) << 8) | (data[1] & 0xFF);
-                    int chargeCurrentmA = ((data[2] & 0xFF) << 8) | (data[3] & 0xFF);
+                    int batVoltagemv = ((data[1] & 0xFF) << 8) | (data[0] & 0xFF);
+                    int chargeCurrentmA = ((data[3] & 0xFF) << 8) | (data[2] & 0xFF);
                     double batVoltagev = batVoltagemv / 1000.0;
                     chargeCurrentA = chargeCurrentmA / 1000.0;
                     textViewBatVoltage.setText(df.format(batVoltagev));
@@ -163,8 +162,8 @@ public class HomeFragment extends Fragment{
                     int highestVoltage = Integer.MIN_VALUE;
                     for (int i = 0; i < 10; i++) {
                         int index = i * 2;
-                        byte msb = data[index];
-                        byte lsb = data[index + 1];
+                        byte msb = data[index + 1];
+                        byte lsb = data[index];
                         int cellVoltage = ((msb << 8) | (lsb & 0xFF));
                         if (cellVoltage < lowestVoltage) {
                             lowestVoltage = cellVoltage;
@@ -198,9 +197,6 @@ public class HomeFragment extends Fragment{
                     boolean checked = data[0] != 0;
                     logQuick("only balance while charging: " + checked);
                     onlyBalanceWhileCharging = checked;
-                    break;
-                default:
-                    // Handle unexpected action
                     break;
             }
         }

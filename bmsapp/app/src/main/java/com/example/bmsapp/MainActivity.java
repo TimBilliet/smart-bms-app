@@ -131,7 +131,7 @@ public class MainActivity extends AppCompatActivity {
         Intent gattServiceIntent = new Intent(this, BluetoothLeService.class);
         this.bindService(gattServiceIntent, serviceConnection, Context.BIND_AUTO_CREATE);
         SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(this);
-        storedMac = sharedPreferences.getString("mac_address", "default value");
+        storedMac = sharedPreferences.getString("mac_address", "AA:AA:AA:AA:AA:AA");
         logQuick(storedMac);
 
     }
