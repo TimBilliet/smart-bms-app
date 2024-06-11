@@ -23,7 +23,6 @@ import androidx.activity.OnBackPressedCallback;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
-import androidx.annotation.RequiresApi;
 import androidx.appcompat.app.AppCompatActivity;
 
 import android.os.IBinder;
@@ -81,9 +80,8 @@ public class MainActivity extends AppCompatActivity {
                     .setIcon(android.R.drawable.ic_dialog_alert)
                     .show();
         }
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            requestBluetoothPermission();
-        }
+        requestBluetoothPermission();
+
         enableBtLauncher = registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), result -> {
             if (result.getResultCode() != Activity.RESULT_OK) {
                 new AlertDialog.Builder(this)
@@ -95,30 +93,34 @@ public class MainActivity extends AppCompatActivity {
                         .show();
             }
         });
-        if(ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED) {
+        if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED) {
+                requestBluetoothEnable();
+            }
+        } else if(ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH) == PackageManager.PERMISSION_GRANTED) {
             requestBluetoothEnable();
         }
+
         Intent gattServiceIntent = new Intent(this, BluetoothLeService.class);
         this.bindService(gattServiceIntent, serviceConnection, Context.BIND_AUTO_CREATE);
         sharedPreferences = PreferenceManager.getDefaultSharedPreferences(this);
         storedMac = sharedPreferences.getString("mac_address", "AA:AA:AA:AA:AA:AA");
         logQuick(storedMac);
-        if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            int importance = NotificationManager.IMPORTANCE_DEFAULT;
-            NotificationChannel channel = new NotificationChannel(CHANNEL_ID, "channel1", importance);
-            channel.setDescription("main notification channel");
-            NotificationManager notificationManager = getSystemService(NotificationManager.class);
-            notificationManager.createNotificationChannel(channel);
-        }
+
+        int importance = NotificationManager.IMPORTANCE_DEFAULT;
+        NotificationChannel channel = new NotificationChannel(CHANNEL_ID, "channel1", importance);
+        channel.setDescription("main notification channel");
+        NotificationManager notificationManager = getSystemService(NotificationManager.class);
+        notificationManager.createNotificationChannel(channel);
         OnBackPressedCallback onBackPressedCallback = new OnBackPressedCallback(true) {
             @Override
             public void handleOnBackPressed() {
-                if(navController.getCurrentDestination() != null && navController.getCurrentDestination().getLabel() != null) {
-                    if(navController.getCurrentDestination().getLabel().toString().equals("Settings")) {
+                if (navController.getCurrentDestination() != null && navController.getCurrentDestination().getLabel() != null) {
+                    if (navController.getCurrentDestination().getLabel().toString().equals("Settings")) {
                         navController.navigate(R.id.action_SettingsFragment_to_HomeFragment);
                         hideOverflowMenu = false;
                         supportInvalidateOptionsMenu();
-                    } else if(navController.getCurrentDestination().getLabel().toString().equals("About")) {
+                    } else if (navController.getCurrentDestination().getLabel().toString().equals("About")) {
                         hideOverflowMenu = false;
                         supportInvalidateOptionsMenu();
                         navController.navigate(R.id.action_AboutFragment_to_HomeFragment);
@@ -137,17 +139,23 @@ public class MainActivity extends AppCompatActivity {
             enableBtLauncher.launch(enableBtIntent);
         }
     }
+
     public void setBluetoothLeService(BluetoothLeService bluetoothLeService) {
         this.bluetoothLeService = bluetoothLeService;
     }
+
     private final ServiceConnection serviceConnection = new ServiceConnection() {
         @Override
         public void onServiceConnected(ComponentName componentName, IBinder service) {
             BluetoothLeService.LocalBinder binder = (BluetoothLeService.LocalBinder) service;
             bluetoothLeService = binder.getService();
             if (!bluetoothLeService.initialize()) {
-                Log.e("BLE", "Unable to initialize Bluetooth");
-                showDialog("Unable to initialize Bluetooth");
+                AlertDialog.Builder builder = new AlertDialog.Builder(MainActivity.this);
+                builder.setMessage("Unable to initialize Bluetooth")
+                        .setPositiveButton("OK", (dialog, which) -> {
+                        });
+                AlertDialog dialog = builder.create();
+                dialog.show();
                 finish();
             }
             bluetoothLeService.connect(convertToUpperCase(storedMac));
@@ -160,19 +168,23 @@ public class MainActivity extends AppCompatActivity {
         }
     };
 
-    @RequiresApi(api = Build.VERSION_CODES.S)
     private void requestBluetoothPermission() {
-        if (ContextCompat.checkSelfPermission(
-                this, Manifest.permission.BLUETOOTH_CONNECT) !=
-                PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.BLUETOOTH_CONNECT}, BT_PERMISSION_REQUEST_CODE);
+        logQuick("sdk version: " + Build.VERSION.SDK_INT);
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
+            if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.BLUETOOTH_CONNECT}, BT_PERMISSION_REQUEST_CODE);
+            } else {
+                ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.BLUETOOTH_ADMIN}, BT_PERMISSION_REQUEST_CODE);
+            }
         }
     }
+
     public boolean isValidMacAddress(String macAddress) {
         final String MAC_ADDRESS_PATTERN = "^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$";
         final Pattern pattern = Pattern.compile(MAC_ADDRESS_PATTERN);
         return pattern.matcher(macAddress).matches();
     }
+
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
                                            @NonNull int[] grantResults) {
@@ -182,18 +194,17 @@ public class MainActivity extends AppCompatActivity {
             if (grantResults[0] == PackageManager.PERMISSION_GRANTED) {
                 requestBluetoothEnable();
             } else {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                    new AlertDialog.Builder(this)
-                            .setTitle("Permission needed")
-                            .setMessage("Bluetooth permission needed for this app to function")
-                            .setPositiveButton("Request again", (dialog, which) -> requestBluetoothPermission())
-                            .setNegativeButton("Exit", (dialog, which) -> finish())
-                            .setIcon(android.R.drawable.ic_dialog_alert)
-                            .show();
-                }
+                new AlertDialog.Builder(this)
+                        .setTitle("Permission needed")
+                        .setMessage("Bluetooth permission needed for this app to function")
+                        .setPositiveButton("Request again", (dialog, which) -> requestBluetoothPermission())
+                        .setNegativeButton("Exit", (dialog, which) -> finish())
+                        .setIcon(android.R.drawable.ic_dialog_alert)
+                        .show();
             }
         }
     }
+
     public static String convertToUpperCase(String address) {
         if (address == null || address.isEmpty()) {
             return address;
@@ -208,28 +219,21 @@ public class MainActivity extends AppCompatActivity {
         }
         return converted.toString();
     }
+
     public BluetoothLeService getBluetoothservice() {
         return bluetoothLeService;
     }
+
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         getMenuInflater().inflate(R.menu.menu_main, menu);
         return true;
     }
-    private void showDialog(String message) {
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setMessage(message)
-                .setPositiveButton("OK", (dialog, which) -> {
-
-                });
-        AlertDialog dialog = builder.create();
-        dialog.show();
-    }
 
     private final BroadcastReceiver bleUpdateReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
-            if(Objects.equals(intent.getAction(), "3007")) {
+            if (Objects.equals(intent.getAction(), "3007")) {
                 byte[] faultCode = intent.getByteArrayExtra("3007");
                 String faultMessage = "";
                 switch (Objects.requireNonNull(faultCode)[0]) {
@@ -252,7 +256,7 @@ public class MainActivity extends AppCompatActivity {
                         faultMessage = "Internal chip fault";
                         break;
                 }
-                if(sharedPreferences.getBoolean("receive_pop_up_dialog", false) && faultCode[0] != 0) {
+                if (sharedPreferences.getBoolean("receive_pop_up_dialog", false) && faultCode[0] != 0) {
                     new AlertDialog.Builder(MainActivity.this)
                             .setTitle("Fault occured")
                             .setMessage(faultMessage)
@@ -261,8 +265,8 @@ public class MainActivity extends AppCompatActivity {
                             .show();
                 }
                 logQuick("show notif");
-                if(sharedPreferences.getBoolean("receive_notifications", false) && faultCode[0] != 0
-                        && ContextCompat.checkSelfPermission(MainActivity.this, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED) {
+                if (sharedPreferences.getBoolean("receive_notifications", false) && faultCode[0] != 0
+                        && ContextCompat.checkSelfPermission(getApplicationContext(), Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED) {
                     logQuick("show notification");
                     NotificationCompat.Builder builder = new NotificationCompat.Builder(MainActivity.this, CHANNEL_ID)
                             .setSmallIcon(android.R.drawable.ic_dialog_alert)
@@ -279,23 +283,21 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     public void onResume() {
-        if(bluetoothLeService != null) {
+        if (bluetoothLeService != null) {
             bluetoothLeService.setIsMinimized(false);
         }
         super.onResume();
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            registerReceiver(bleUpdateReceiver, new IntentFilter("3007"), Context.RECEIVER_NOT_EXPORTED);
-        }
+        ContextCompat.registerReceiver(this,bleUpdateReceiver, new IntentFilter("3007"), ContextCompat.RECEIVER_NOT_EXPORTED);
     }
 
     @Override
     public void onPause() {
         super.onPause();
-        if(bluetoothLeService != null) {
+        if (bluetoothLeService != null) {
             bluetoothLeService.setIsMinimized(true);
         }
-       // unregisterReceiver(bleUpdateReceiver);
     }
+
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         int id = item.getItemId();
@@ -308,20 +310,19 @@ public class MainActivity extends AppCompatActivity {
             navController.navigate(R.id.SettingsFragment);
             hideOverflowMenu = true;
             supportInvalidateOptionsMenu();
-            //SettingsFragment.parameterCategory.setVisible(false);
             return true;
         } else if (id == android.R.id.home) {
             hideOverflowMenu = false;
             supportInvalidateOptionsMenu();
             navController.navigate(R.id.HomeFragment);
-        } else if(id == R.id.manual_refresh){
-            if(bluetoothLeService != null && bluetoothLeService.getConnectionState() == BluetoothProfile.STATE_CONNECTED) {
+        } else if (id == R.id.manual_refresh) {
+            if (bluetoothLeService != null && bluetoothLeService.getConnectionState() == BluetoothProfile.STATE_CONNECTED) {
                 bluetoothLeService.readCharacteristicsForHomefragment();
             } else {
                 Toast.makeText(getApplicationContext(), "Not connected.", Toast.LENGTH_LONG).show();
             }
-        } else if(id == R.id.power_off) {
-            if(bluetoothLeService != null && bluetoothLeService.getConnectionState() == BluetoothProfile.STATE_CONNECTED) {
+        } else if (id == R.id.power_off) {
+            if (bluetoothLeService != null && bluetoothLeService.getConnectionState() == BluetoothProfile.STATE_CONNECTED) {
                 showPowerOffDialog();
             } else {
                 Toast.makeText(getApplicationContext(), "Not connected.", Toast.LENGTH_LONG).show();
@@ -333,12 +334,14 @@ public class MainActivity extends AppCompatActivity {
     public void logQuick(String message) {
         Log.d(TAG, message);
     }
+
     @Override
     public boolean onSupportNavigateUp() {
         NavController navController = Navigation.findNavController(this, R.id.nav_host_fragment_content_main);
         return NavigationUI.navigateUp(navController, appBarConfiguration)
                 || super.onSupportNavigateUp();
     }
+
     private void showPowerOffDialog() {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         builder.setMessage("Are you sure you want to power off the bms?");
@@ -346,8 +349,8 @@ public class MainActivity extends AppCompatActivity {
         builder.setNegativeButton("cancel", null);
         builder.create();
         builder.show();
-
     }
+
     private void shutdownBms() {
         byte[] value = {0};
         bluetoothLeService.writeCharacteristic("4007", value);

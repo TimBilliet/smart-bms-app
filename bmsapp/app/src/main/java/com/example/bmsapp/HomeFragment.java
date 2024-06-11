@@ -23,7 +23,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
-import androidx.annotation.RequiresApi;
+import androidx.core.content.ContextCompat;
 import androidx.fragment.app.Fragment;
 
 import java.math.RoundingMode;
@@ -39,9 +39,9 @@ public class HomeFragment extends Fragment{
     private TextView textViewCurrent;
     private Switch enableChargingSwitch;
     private Switch enableBalancingSwitch;
-    private List<TextView> textViewCellVoltagesList = new ArrayList<>();
-    private List<ProgressBar> progressBarCellList = new ArrayList<>();
-    private List<TextView> textViewCellBalancingStateList = new ArrayList<>();
+    private final List<TextView> textViewCellVoltagesList = new ArrayList<>();
+    private final List<ProgressBar> progressBarCellList = new ArrayList<>();
+    private final List<TextView> textViewCellBalancingStateList = new ArrayList<>();
     private TextView textViewVoltageRange;
     private TextView textViewVoltageDifference;
     private double chargeCurrentA;
@@ -88,7 +88,6 @@ public class HomeFragment extends Fragment{
         textViewVoltageDifference = view.findViewById(R.id.textViewDifference);
         enableBalancingSwitch = view.findViewById(R.id.switchBalancing);
         enableChargingSwitch = view.findViewById(R.id.switchCharging);
-        //sharedPreferences = PreferenceManager.getDefaultSharedPreferences(requireActivity());
         enableBalancingSwitch.setOnClickListener(v -> {
             if(bluetoothLeService != null && bluetoothLeService.getConnectionState() == BluetoothAdapter.STATE_CONNECTED) {
                 byte[] data = {0};
@@ -99,7 +98,6 @@ public class HomeFragment extends Fragment{
                         } else {
                             handlerToast.post(() -> Toast.makeText(requireContext(), "Balancing only allowed while charging", Toast.LENGTH_SHORT).show());
                             enableBalancingSwitch.setChecked(false);
-                            data[0] = 0;
                         }
                     } else {
                         data[0] = 1;
@@ -176,6 +174,7 @@ public class HomeFragment extends Fragment{
                     break;
                 case "3003":  // cell balancing state
                     data = intent.getByteArrayExtra("3003");
+
                     for (int i = 0; i < 10; i++) {
                         int balancingState = data[i];
                         if (balancingState == 1) {
@@ -218,15 +217,12 @@ public class HomeFragment extends Fragment{
     public void logQuick(String message) {
         Log.d(TAG, message);
     }
-    @RequiresApi(api = Build.VERSION_CODES.TIRAMISU)
     @Override
     public void onResume() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            requireActivity().registerReceiver(bleUpdateReceiver, new IntentFilter("3001"), Context.RECEIVER_NOT_EXPORTED);
-            requireActivity().registerReceiver(bleUpdateReceiver, new IntentFilter("3002"), Context.RECEIVER_NOT_EXPORTED);
-            requireActivity().registerReceiver(bleUpdateReceiver, new IntentFilter("3003"), Context.RECEIVER_NOT_EXPORTED);
-            requireActivity().registerReceiver(bleUpdateReceiver, new IntentFilter("4008"), Context.RECEIVER_NOT_EXPORTED);
-        }
+        ContextCompat.registerReceiver(requireActivity(),bleUpdateReceiver, new IntentFilter("3001"), ContextCompat.RECEIVER_NOT_EXPORTED);
+        ContextCompat.registerReceiver(requireActivity(),bleUpdateReceiver, new IntentFilter("3002"), ContextCompat.RECEIVER_NOT_EXPORTED);
+        ContextCompat.registerReceiver(requireActivity(),bleUpdateReceiver, new IntentFilter("3003"), ContextCompat.RECEIVER_NOT_EXPORTED);
+        ContextCompat.registerReceiver(requireActivity(),bleUpdateReceiver, new IntentFilter("4008"), ContextCompat.RECEIVER_NOT_EXPORTED);
         if(bluetoothLeService != null) {
             bluetoothLeService.readCharacteristicsForHomefragment();
         }
@@ -240,11 +236,6 @@ public class HomeFragment extends Fragment{
             bluetoothLeService = activity.getBluetoothservice();
         }
         super.onAttach(context);
-    }
-    @Override
-    public void onPause() {
-        super.onPause();
-        //requireActivity().unregisterReceiver(bleUpdateReceiver);
     }
 
     public void onViewCreated(@NonNull View view, Bundle savedInstanceState) {
