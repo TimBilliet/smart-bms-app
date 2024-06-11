@@ -2,11 +2,6 @@
 
     <PreferenceCategory app:title="General">
 
-        <EditTextPreference
-            app:key="update_interval"
-            app:title="App update interval(s)"
-            app:useSimpleSummaryProvider="true"
-            />
         <SwitchPreference
             app:key="receive_notifications"
             app:title="Enable fault notifications"

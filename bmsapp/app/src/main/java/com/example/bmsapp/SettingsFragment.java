@@ -42,7 +42,6 @@ public class SettingsFragment extends PreferenceFragmentCompat {
     private boolean isConnected = false;
     private EditTextPreference macAddressPreference;
     private SwitchPreference notificationPreference;
-    private EditTextPreference appUpdateIntervalPreference;
     private SwitchPreference autoUpdatePreference;
     private SwitchPreference onlyBalanceWhileChargingPreference;
     private EditTextPreference shuntResistorPreference;
@@ -75,7 +74,6 @@ public class SettingsFragment extends PreferenceFragmentCompat {
         setPreferencesFromResource(R.xml.root_preferences, rootKey);
         macAddressPreference = findPreference("mac_address");
         notificationPreference = findPreference("receive_notifications");
-        appUpdateIntervalPreference = findPreference("update_interval");
         autoUpdatePreference = findPreference("auto_update");
         onlyBalanceWhileChargingPreference = findPreference("only_balance_while_charging");
         shuntResistorPreference = findPreference("shunt_value");
@@ -107,26 +105,6 @@ public class SettingsFragment extends PreferenceFragmentCompat {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && (boolean)toggle) {
                     requestNotificationPermission();
                 }
-                return true;
-            });
-        }
-        if(appUpdateIntervalPreference != null) {
-            appUpdateIntervalPreference.setOnPreferenceChangeListener((preference, interval) -> {
-                if(isValidDelay((String) interval)) {
-                    if(Float.parseFloat((String) interval) >= 0) {
-                        updateInterval = Float.parseFloat((String) interval);
-                        appUpdateIntervalPreference.setText((String) interval);
-                        //sharedPreferences = PreferenceManager.getDefaultSharedPreferences(requireActivity());
-                        SharedPreferences.Editor editor = sharedPreferences.edit();
-                        editor.putString("update_interval", (String) interval);
-                        editor.apply();
-                        logQuick( "is connected: " + isConnected);
-                        bluetoothLeService.updateInterval(updateInterval);
-                    }
-                } else {
-                    showDialog("Invalid input\nMaximum 3 digits after the decimal point");
-                }
-
                 return true;
             });
         }
@@ -297,7 +275,7 @@ public class SettingsFragment extends PreferenceFragmentCompat {
             ActivityCompat.requestPermissions(requireActivity(), new String[]{Manifest.permission.POST_NOTIFICATIONS}, 0);
         }
     }
-    private BroadcastReceiver bleUpdateReceiver = new BroadcastReceiver() {
+    private final BroadcastReceiver bleUpdateReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
             String action = intent.getAction();

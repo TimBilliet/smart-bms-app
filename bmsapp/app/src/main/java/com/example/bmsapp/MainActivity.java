@@ -18,6 +18,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.Manifest;
 
+import androidx.activity.OnBackPressedCallback;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
@@ -51,16 +52,12 @@ public class MainActivity extends AppCompatActivity {
     private ActivityMainBinding binding;
     public static final String TAG = "Mainactivity";
     private boolean hideOverflowMenu = false;
-
     private BluetoothAdapter bluetoothAdapter;
     private ActivityResultLauncher<Intent> enableBtLauncher;
     private BluetoothLeService bluetoothLeService;
-    private MainActivity thisActivity;
     NavController navController;
     private boolean isConnected = false;
     private SharedPreferences sharedPreferences;
-    private Menu menu;
-    private static final int NOTIF_PERMISSION_REQUEST_CODE = 69;
     private static final int BT_PERMISSION_REQUEST_CODE = 420;
     private static final String CHANNEL_ID = "1";
     String storedMac;
@@ -68,7 +65,6 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        thisActivity = this;
         binding = ActivityMainBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
         PreferenceManager.setDefaultValues(this, R.xml.root_preferences, false);
@@ -114,6 +110,25 @@ public class MainActivity extends AppCompatActivity {
             NotificationManager notificationManager = getSystemService(NotificationManager.class);
             notificationManager.createNotificationChannel(channel);
         }
+        OnBackPressedCallback onBackPressedCallback = new OnBackPressedCallback(true) {
+            @Override
+            public void handleOnBackPressed() {
+                if(navController.getCurrentDestination() != null && navController.getCurrentDestination().getLabel() != null) {
+                    if(navController.getCurrentDestination().getLabel().toString().equals("Settings")) {
+                        navController.navigate(R.id.action_SettingsFragment_to_HomeFragment);
+                        hideOverflowMenu = false;
+                        supportInvalidateOptionsMenu();
+                    } else if(navController.getCurrentDestination().getLabel().toString().equals("About")) {
+                        hideOverflowMenu = false;
+                        supportInvalidateOptionsMenu();
+                        navController.navigate(R.id.action_AboutFragment_to_HomeFragment);
+                    } else {
+                        moveTaskToBack(true);
+                    }
+                }
+            }
+        };
+        getOnBackPressedDispatcher().addCallback(this, onBackPressedCallback);
     }
 
     private void requestBluetoothEnable() {
@@ -211,24 +226,7 @@ public class MainActivity extends AppCompatActivity {
         dialog.show();
     }
 
-    @SuppressLint("RestrictedApi")
-    @Override
-    public void onBackPressed() {
-        //TODO fix this, doesn't work properly
-        logQuick(Objects.requireNonNull(Objects.requireNonNull(navController.getCurrentDestination()).getLabel()).toString());
-        if (navController.getCurrentDestination().getLabel().toString().equals("Settings") || navController.getCurrentDestination().getLabel().toString().equals("About")) {
-            hideOverflowMenu = false;
-            supportInvalidateOptionsMenu();
-            navController.navigate(R.id.HomeFragment);
-
-        } else if(navController.getCurrentDestination().getLabel().toString().equals("Home")) {
-            moveTaskToBack(true);
-        } else {
-            super.onBackPressed();
-        }
-    }
-
-    private BroadcastReceiver bleUpdateReceiver = new BroadcastReceiver() {
+    private final BroadcastReceiver bleUpdateReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
             isConnected = intent.getBooleanExtra("CONNECTION_STATE_CHANGED", false);
