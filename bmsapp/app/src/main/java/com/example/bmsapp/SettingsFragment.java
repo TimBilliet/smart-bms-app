@@ -1,13 +1,9 @@
 package com.example.bmsapp;
 
-import static androidx.core.content.ContextCompat.getSystemService;
 
 import android.Manifest;
 import android.app.AlertDialog;
-import android.app.Notification;
-import android.app.NotificationManager;
 import android.bluetooth.BluetoothGattDescriptor;
-import android.bluetooth.BluetoothManager;
 import android.bluetooth.BluetoothProfile;
 import android.content.BroadcastReceiver;
 import android.content.ComponentName;
@@ -15,7 +11,6 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.ServiceConnection;
-import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Bundle;
@@ -30,18 +25,13 @@ import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import androidx.preference.EditTextPreference;
 import androidx.preference.PreferenceFragmentCompat;
-import androidx.preference.PreferenceManager;
 import androidx.preference.SwitchPreference;
 
-
-import java.util.Objects;
 import java.util.regex.Pattern;
 
 public class SettingsFragment extends PreferenceFragmentCompat {
 
-    private static final String MAC_ADDRESS_PATTERN = "^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$";
     public static final String TAG = "Settingsfragment";
-    private static final Pattern pattern = Pattern.compile(MAC_ADDRESS_PATTERN);
     private String macAddress;
     private SwitchPreference onlyBalanceWhileChargingPreference;
     private EditTextPreference shuntResistorPreference;
@@ -53,11 +43,9 @@ public class SettingsFragment extends PreferenceFragmentCompat {
     private EditTextPreference idleCurrentPreference;
     private BluetoothLeService bluetoothLeService;
     private final Handler handlerToast = new Handler(Looper.getMainLooper());
-    private SharedPreferences sharedPreferences;
 
     @Override
     public void onAttach(@NonNull Context context) {
-        logQuick("ATTACHED TO SETTINGSFRAG");
         MainActivity activity = (MainActivity) requireActivity();
         if (activity.getBluetoothservice() != null) {
             bluetoothLeService = activity.getBluetoothservice();
@@ -80,8 +68,6 @@ public class SettingsFragment extends PreferenceFragmentCompat {
         minimumBalanceVoltagePreference = findPreference("min_balance_voltage");
         maximumCellVoltageDifferencePreference = findPreference("max_cell_voltage_diff");
         idleCurrentPreference = findPreference("idle_current_threshold");
-        sharedPreferences = PreferenceManager.getDefaultSharedPreferences(requireActivity());
-        //PreferenceManager.setDefaultValues(requireContext(), R.xml.root_preferences, false);
         if (macAddressPreference != null) {
             macAddressPreference.setPositiveButtonText("Connect");
             macAddressPreference.setOnBindEditTextListener(editText -> editText.setHint("AA:AA:AA:AA:AA:AA"));

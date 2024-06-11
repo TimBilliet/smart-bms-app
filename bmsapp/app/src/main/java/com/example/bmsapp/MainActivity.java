@@ -1,6 +1,5 @@
 package com.example.bmsapp;
 
-import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.NotificationChannel;
@@ -49,7 +48,6 @@ import java.util.regex.Pattern;
 public class MainActivity extends AppCompatActivity {
 
     private AppBarConfiguration appBarConfiguration;
-    private ActivityMainBinding binding;
     public static final String TAG = "Mainactivity";
     private boolean hideOverflowMenu = false;
     private BluetoothAdapter bluetoothAdapter;
@@ -64,7 +62,7 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        binding = ActivityMainBinding.inflate(getLayoutInflater());
+        com.example.bmsapp.databinding.ActivityMainBinding binding = ActivityMainBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
         PreferenceManager.setDefaultValues(this, R.xml.root_preferences, false);
         setSupportActionBar(binding.toolbar);
@@ -179,12 +177,6 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    public boolean isValidMacAddress(String macAddress) {
-        final String MAC_ADDRESS_PATTERN = "^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$";
-        final Pattern pattern = Pattern.compile(MAC_ADDRESS_PATTERN);
-        return pattern.matcher(macAddress).matches();
-    }
-
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
                                            @NonNull int[] grantResults) {
@@ -235,8 +227,11 @@ public class MainActivity extends AppCompatActivity {
         public void onReceive(Context context, Intent intent) {
             if (Objects.equals(intent.getAction(), "3007")) {
                 byte[] faultCode = intent.getByteArrayExtra("3007");
+                if(faultCode == null) {
+                    return;
+                }
                 String faultMessage = "";
-                switch (Objects.requireNonNull(faultCode)[0]) {
+                switch (faultCode[0]) {
                     case 1:
                         faultMessage = "Over current in discharge fault";
                         break;

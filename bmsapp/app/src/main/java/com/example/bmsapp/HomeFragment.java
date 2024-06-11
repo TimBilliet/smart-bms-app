@@ -1,14 +1,12 @@
 package com.example.bmsapp;
 
 import android.bluetooth.BluetoothAdapter;
-import android.bluetooth.BluetoothManager;
 import android.content.BroadcastReceiver;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.ServiceConnection;
-import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
@@ -30,7 +28,7 @@ import java.math.RoundingMode;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
+import java.util.Locale;
 
 public class HomeFragment extends Fragment{
 
@@ -134,61 +132,70 @@ public class HomeFragment extends Fragment{
             DecimalFormat df = new DecimalFormat("#.##");
             df.setRoundingMode(RoundingMode.CEILING);
             String action = intent.getAction();
+            if(action == null) {
+                return;
+            }
             byte[] data;
-            switch (Objects.requireNonNull(action)) {
+            switch (action) {
                 case "3001":  // pack voltage and charge current
                     data = intent.getByteArrayExtra("3001");
-                    int batVoltagemv = ((data[1] & 0xFF) << 8) | (data[0] & 0xFF);
-                    int chargeCurrentmA = ((data[3] & 0xFF) << 8) | (data[2] & 0xFF);
-                    double batVoltagev = batVoltagemv / 1000.0;
-                    chargeCurrentA = chargeCurrentmA / 1000.0;
-                    if(chargeCurrentA > 0.01) {
-                        textViewCurrent.setText(df.format(chargeCurrentA));
+                    if(data != null) {
+                        int batVoltagemv = ((data[1] & 0xFF) << 8) | (data[0] & 0xFF);
+                        int chargeCurrentmA = ((data[3] & 0xFF) << 8) | (data[2] & 0xFF);
+                        double batVoltagev = batVoltagemv / 1000.0;
+                        chargeCurrentA = chargeCurrentmA / 1000.0;
+                        if(chargeCurrentA > 0.01) {
+                            textViewCurrent.setText(df.format(chargeCurrentA));
+                        }
+                        textViewBatVoltage.setText(df.format(batVoltagev));
                     }
-                    textViewBatVoltage.setText(df.format(batVoltagev));
                     break;
                 case "3002":  // cell voltages
                     data = intent.getByteArrayExtra("3002");
-                    int lowestVoltage = Integer.MAX_VALUE;
-                    int highestVoltage = Integer.MIN_VALUE;
-                    for (int i = 0; i < 10; i++) {
-                        int index = i * 2;
-                        byte msb = data[index + 1];
-                        byte lsb = data[index];
-                        int cellVoltage = ((msb << 8) | (lsb & 0xFF));
-                        if (cellVoltage < lowestVoltage) {
-                            lowestVoltage = cellVoltage;
-                        } else if (cellVoltage > highestVoltage) {
-                            highestVoltage = cellVoltage;
+                    if(data != null) {
+                        int lowestVoltage = Integer.MAX_VALUE;
+                        int highestVoltage = Integer.MIN_VALUE;
+                        for (int i = 0; i < 10; i++) {
+                            int index = i * 2;
+                            byte msb = data[index + 1];
+                            byte lsb = data[index];
+                            int cellVoltage = ((msb << 8) | (lsb & 0xFF));
+                            if (cellVoltage < lowestVoltage) {
+                                lowestVoltage = cellVoltage;
+                            } else if (cellVoltage > highestVoltage) {
+                                highestVoltage = cellVoltage;
+                            }
+                            progressBarCellList.get(i).setProgress(cellVoltage);
+                            textViewCellVoltagesList.get(i).setText(String.format(Locale.getDefault(),"%.3f", cellVoltage / 1000.0));
                         }
-                        progressBarCellList.get(i).setProgress(cellVoltage);
-                        textViewCellVoltagesList.get(i).setText(String.format("%.3f", cellVoltage / 1000.0));
+                        int difference = highestVoltage - lowestVoltage;
+                        String differenceString = difference + "mV";
+                        textViewVoltageDifference.setText(differenceString);
+                        String voltageRange = String.format("%sV-%sV",
+                                df.format(lowestVoltage / 1000.0),
+                                df.format(highestVoltage / 1000.0));
+                        textViewVoltageRange.setText(voltageRange);
                     }
-                    int difference = highestVoltage - lowestVoltage;
-                    String differenceString = difference + "mV";
-                    textViewVoltageDifference.setText(differenceString);
-                    String voltageRange = String.format("%sV-%sV",
-                            df.format(lowestVoltage / 1000.0),
-                            df.format(highestVoltage / 1000.0));
-                    textViewVoltageRange.setText(voltageRange);
+
                     break;
                 case "3003":  // cell balancing state
                     data = intent.getByteArrayExtra("3003");
-
-                    for (int i = 0; i < 10; i++) {
-                        int balancingState = data[i];
-                        if (balancingState == 1) {
-                            textViewCellBalancingStateList.get(i).setText("B");
-                        } else {
-                            textViewCellBalancingStateList.get(i).setText("");
+                    if(data != null) {
+                        for (int i = 0; i < 10; i++) {
+                            int balancingState = data[i];
+                            if (balancingState == 1) {
+                                textViewCellBalancingStateList.get(i).setText("B");
+                            } else {
+                                textViewCellBalancingStateList.get(i).setText("");
+                            }
                         }
                     }
                     break;
                  case "4008": // only balance while charging
                     data = intent.getByteArrayExtra("4008");
-                    boolean checked = data[0] != 0;
-                    logQuick("only balance while charging: " + checked);
-                    onlyBalanceWhileCharging = checked;
+                    if(data != null) {
+                        onlyBalanceWhileCharging = data[0] != 0;
+                    }
                     break;
             }
         }
@@ -199,7 +206,6 @@ public class HomeFragment extends Fragment{
             BluetoothLeService.LocalBinder binder = (BluetoothLeService.LocalBinder) service;
 
             MainActivity activity = (MainActivity) requireActivity();
-
             if(activity.getBluetoothservice() != null) {
                 bluetoothLeService = activity.getBluetoothservice();
             } else {
@@ -210,7 +216,6 @@ public class HomeFragment extends Fragment{
         @Override
         public void onServiceDisconnected(ComponentName componentName) {
             bluetoothLeService = null;
-            Log.d(TAG, "Service disconnected");
         }
     };
 
@@ -230,7 +235,6 @@ public class HomeFragment extends Fragment{
     }
     @Override
     public void onAttach(@NonNull Context context) {
-        logQuick("onattach homefrag");
         MainActivity activity = (MainActivity) requireActivity();
         if(activity.getBluetoothservice() != null) {
             bluetoothLeService = activity.getBluetoothservice();
@@ -241,5 +245,4 @@ public class HomeFragment extends Fragment{
     public void onViewCreated(@NonNull View view, Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
     }
-
 }
