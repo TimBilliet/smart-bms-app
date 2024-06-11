@@ -227,7 +227,8 @@ public class BluetoothLeService extends Service {
                             Log.i(TAG, "Found Characteristic: " + mCharacteristic.getUuid().toString());
                             bluetoothGattCharacteristicList.add(mCharacteristic);
                             if (mCharacteristic.getUuid().toString().startsWith("3001", 4) || mCharacteristic.getUuid().toString().startsWith("3002", 4)
-                                    || mCharacteristic.getUuid().toString().startsWith("3003", 4) || mCharacteristic.getUuid().toString().startsWith("4008", 4)) {
+                                    || mCharacteristic.getUuid().toString().startsWith("3003", 4) || mCharacteristic.getUuid().toString().startsWith("3005", 4)
+                                    || mCharacteristic.getUuid().toString().startsWith("3006", 4) ||mCharacteristic.getUuid().toString().startsWith("4008", 4)) {
                                 homefragmentBluetoothGattCharacteristicList.add(mCharacteristic);
                             }
                         }
@@ -235,6 +236,7 @@ public class BluetoothLeService extends Service {
                     logQuick("onServicesDiscovered UUID: " + gattService.getUuid().toString());
                 }
                 tempHomefragmentBluetoothGattCharacteristicList.addAll(homefragmentBluetoothGattCharacteristicList);
+                logQuick("homefraglist size: " + tempHomefragmentBluetoothGattCharacteristicList.size());
                 tempBluetoothGattCharacteristicList.addAll(bluetoothGattCharacteristicList);
                 toggleFaultNotifications();
             }

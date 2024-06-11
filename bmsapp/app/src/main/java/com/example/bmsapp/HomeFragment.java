@@ -136,6 +136,7 @@ public class HomeFragment extends Fragment{
                 return;
             }
             byte[] data;
+            boolean checked;
             switch (action) {
                 case "3001":  // pack voltage and charge current
                     data = intent.getByteArrayExtra("3001");
@@ -144,9 +145,7 @@ public class HomeFragment extends Fragment{
                         int chargeCurrentmA = ((data[3] & 0xFF) << 8) | (data[2] & 0xFF);
                         double batVoltagev = batVoltagemv / 1000.0;
                         chargeCurrentA = chargeCurrentmA / 1000.0;
-                        if(chargeCurrentA > 0.01) {
-                            textViewCurrent.setText(df.format(chargeCurrentA));
-                        }
+                        textViewCurrent.setText(df.format(chargeCurrentA));
                         textViewBatVoltage.setText(df.format(batVoltagev));
                     }
                     break;
@@ -191,6 +190,22 @@ public class HomeFragment extends Fragment{
                         }
                     }
                     break;
+                case "3005":
+                    //TODO change this to use preferences
+                    data = intent.getByteArrayExtra("3005");
+                    if(data != null) {
+                        checked = data[0] != 0;
+                        enableBalancingSwitch.setChecked(checked);
+                    }
+                    break;
+                case "3006":
+                    //TODO change this to use preferences
+                    data = intent.getByteArrayExtra("3006");
+                    if(data != null) {
+                        checked = data[0] != 0;
+                        enableChargingSwitch.setChecked(checked);
+                    }
+                    break;
                  case "4008": // only balance while charging
                     data = intent.getByteArrayExtra("4008");
                     if(data != null) {
@@ -227,6 +242,8 @@ public class HomeFragment extends Fragment{
         ContextCompat.registerReceiver(requireActivity(),bleUpdateReceiver, new IntentFilter("3001"), ContextCompat.RECEIVER_NOT_EXPORTED);
         ContextCompat.registerReceiver(requireActivity(),bleUpdateReceiver, new IntentFilter("3002"), ContextCompat.RECEIVER_NOT_EXPORTED);
         ContextCompat.registerReceiver(requireActivity(),bleUpdateReceiver, new IntentFilter("3003"), ContextCompat.RECEIVER_NOT_EXPORTED);
+        ContextCompat.registerReceiver(requireActivity(),bleUpdateReceiver, new IntentFilter("3005"), ContextCompat.RECEIVER_NOT_EXPORTED);
+        ContextCompat.registerReceiver(requireActivity(),bleUpdateReceiver, new IntentFilter("3006"), ContextCompat.RECEIVER_NOT_EXPORTED);
         ContextCompat.registerReceiver(requireActivity(),bleUpdateReceiver, new IntentFilter("4008"), ContextCompat.RECEIVER_NOT_EXPORTED);
         if(bluetoothLeService != null) {
             bluetoothLeService.readCharacteristicsForHomefragment();
