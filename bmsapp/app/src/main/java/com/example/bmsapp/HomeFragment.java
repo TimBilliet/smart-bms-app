@@ -6,7 +6,6 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.ServiceConnection;
-import android.content.SharedPreferences;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
@@ -24,7 +23,6 @@ import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.annotation.RequiresApi;
 import androidx.fragment.app.Fragment;
-
 
 import java.math.RoundingMode;
 import java.text.DecimalFormat;
@@ -45,7 +43,6 @@ public class HomeFragment extends Fragment{
     private TextView textViewVoltageRange;
     private TextView textViewVoltageDifference;
     private double chargeCurrentA;
-    private SharedPreferences sharedPreferences;
     private final Handler handlerToast = new Handler(Looper.getMainLooper());
     private BluetoothLeService bluetoothLeService;
     private boolean isConnected;
@@ -96,7 +93,6 @@ public class HomeFragment extends Fragment{
             if(bluetoothLeService != null) {
                 byte[] data = {0};
                 if(enableBalancingSwitch.isChecked()) {
-
                     if(onlyBalanceWhileCharging) {
                         if(chargeCurrentA > 0.02) {
                             data[0] = 1;
@@ -107,7 +103,6 @@ public class HomeFragment extends Fragment{
                         }
                     } else {
                         data[0] = 1;
-
                     }
                 }
                 bluetoothLeService.writeCharacteristic("3005", data);
@@ -120,8 +115,6 @@ public class HomeFragment extends Fragment{
                     data[0] = 1;
                 }
                 bluetoothLeService.writeCharacteristic("3006", data);
-            } else {
-                logQuick("ITSNULLJGBIGQI5G");
             }
         });
 
@@ -134,12 +127,10 @@ public class HomeFragment extends Fragment{
     private final BroadcastReceiver bleUpdateReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
-            logQuick("SHIT RECEIVED");
             DecimalFormat df = new DecimalFormat("#.##");
             df.setRoundingMode(RoundingMode.CEILING);
             String action = intent.getAction();
             byte[] data;
-            long start = 0;
             switch (Objects.requireNonNull(action)) {
                 case "CONNECTION_STATE_CHANGED":
                     if(intent.getBooleanExtra("CONNECTION_STATE_CHANGED", false)) {
@@ -230,7 +221,6 @@ public class HomeFragment extends Fragment{
     @RequiresApi(api = Build.VERSION_CODES.TIRAMISU)
     @Override
     public void onResume() {
-        logQuick("onresume homefrag");
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             requireActivity().registerReceiver(bleUpdateReceiver, new IntentFilter("CONNECTION_STATE_CHANGED"), Context.RECEIVER_NOT_EXPORTED);
             requireActivity().registerReceiver(bleUpdateReceiver, new IntentFilter("3001"), Context.RECEIVER_NOT_EXPORTED);
@@ -249,8 +239,6 @@ public class HomeFragment extends Fragment{
         MainActivity activity = (MainActivity) requireActivity();
         if(activity.getBluetoothservice() != null) {
             bluetoothLeService = activity.getBluetoothservice();
-            logQuick("bluetooth characteristic read from homefrag");
-            //bluetoothLeService.readAllCharacteristics();
         }
         if(bluetoothLeService != null) {
             bluetoothLeService.setIsHomefragment(true);

@@ -1,5 +1,6 @@
 package com.example.bmsapp;
 
+import android.Manifest;
 import android.app.AlertDialog;
 import android.bluetooth.BluetoothGattDescriptor;
 import android.content.BroadcastReceiver;
@@ -9,6 +10,7 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.ServiceConnection;
 import android.content.SharedPreferences;
+import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
@@ -18,12 +20,13 @@ import android.util.Log;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.RequiresApi;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
 import androidx.preference.EditTextPreference;
 import androidx.preference.PreferenceFragmentCompat;
 import androidx.preference.PreferenceManager;
 import androidx.preference.SwitchPreference;
-
-//import com.example.bmsapp.databinding.FragmentSettingsBinding;
 
 
 import java.util.Objects;
@@ -38,6 +41,7 @@ public class SettingsFragment extends PreferenceFragmentCompat {
     private float updateInterval;
     private boolean isConnected = false;
     private EditTextPreference macAddressPreference;
+    private SwitchPreference notificationPreference;
     private EditTextPreference appUpdateIntervalPreference;
     private SwitchPreference autoUpdatePreference;
     private SwitchPreference onlyBalanceWhileChargingPreference;
@@ -49,7 +53,6 @@ public class SettingsFragment extends PreferenceFragmentCompat {
     private EditTextPreference maximumCellVoltageDifferencePreference;
     private EditTextPreference idleCurrentPreference;
     private BluetoothLeService bluetoothLeService;
-    private MainActivity mainActivity;
     private final Handler handlerToast = new Handler(Looper.getMainLooper());
     private SharedPreferences sharedPreferences;
 
@@ -57,9 +60,9 @@ public class SettingsFragment extends PreferenceFragmentCompat {
     public void onAttach(@NonNull Context context) {
 
         logQuick("ATTACHED TO SETTINGSFRAG");
-        mainActivity = (MainActivity)requireActivity();
-        if(mainActivity.getBluetoothservice() != null) {
-            bluetoothLeService = mainActivity.getBluetoothservice();
+        MainActivity activity = (MainActivity) requireActivity();
+        if(activity.getBluetoothservice() != null) {
+            bluetoothLeService = activity.getBluetoothservice();
             isConnected = bluetoothLeService.getConnectionStatus();
             bluetoothLeService.setIsHomefragment(false);
         }
@@ -71,6 +74,7 @@ public class SettingsFragment extends PreferenceFragmentCompat {
         logQuick("on create preferences");
         setPreferencesFromResource(R.xml.root_preferences, rootKey);
         macAddressPreference = findPreference("mac_address");
+        notificationPreference = findPreference("receive_notifications");
         appUpdateIntervalPreference = findPreference("update_interval");
         autoUpdatePreference = findPreference("auto_update");
         onlyBalanceWhileChargingPreference = findPreference("only_balance_while_charging");
@@ -98,6 +102,14 @@ public class SettingsFragment extends PreferenceFragmentCompat {
                 return true;
             });
         }
+        if(notificationPreference != null) {
+            notificationPreference.setOnPreferenceChangeListener((preference, toggle) -> {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && (boolean)toggle) {
+                    requestNotificationPermission();
+                }
+                return true;
+            });
+        }
         if(appUpdateIntervalPreference != null) {
             appUpdateIntervalPreference.setOnPreferenceChangeListener((preference, interval) -> {
                 if(isValidDelay((String) interval)) {
@@ -121,14 +133,12 @@ public class SettingsFragment extends PreferenceFragmentCompat {
         if(autoUpdatePreference != null) {
             autoUpdatePreference.setOnPreferenceChangeListener((preference, toggle) -> {
                 if(isConnected) {
-                  //  byte[] data = new byte[1];
                     if ((boolean) toggle) {
                         logQuick("notifications on");
-                        bluetoothLeService.toggleNotifications(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE, false);
-                      //  data[0] = 1;
+                        bluetoothLeService.toggleNotifications(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE);
                     } else {
                         logQuick("notifications off");
-                        bluetoothLeService.toggleNotifications(BluetoothGattDescriptor.DISABLE_NOTIFICATION_VALUE, false);
+                        bluetoothLeService.toggleNotifications(BluetoothGattDescriptor.DISABLE_NOTIFICATION_VALUE);
                     }
                 } else {
                     handlerToast.post(() -> Toast.makeText(getContext(), "Not connected.", Toast.LENGTH_LONG).show());
@@ -166,7 +176,6 @@ public class SettingsFragment extends PreferenceFragmentCompat {
                 } else {
                     handlerToast.post(() -> Toast.makeText(getContext(), "Not connected.", Toast.LENGTH_LONG).show());
                 }
-
                 return true;
             }));
         }
@@ -279,11 +288,15 @@ public class SettingsFragment extends PreferenceFragmentCompat {
                 return true;
             }));
         }
-
-        //bluetoothLeService.readAllCharacteristics();
-        //bluetoothLeService.readCharacteristicsForSettingsfragment();
     }
-
+    @RequiresApi(api = Build.VERSION_CODES.TIRAMISU)
+    private void requestNotificationPermission() {
+        if (ContextCompat.checkSelfPermission(
+                requireActivity(), Manifest.permission.POST_NOTIFICATIONS) !=
+                PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(requireActivity(), new String[]{Manifest.permission.POST_NOTIFICATIONS}, 0);
+        }
+    }
     private BroadcastReceiver bleUpdateReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
@@ -294,12 +307,6 @@ public class SettingsFragment extends PreferenceFragmentCompat {
                     if(intent.getBooleanExtra("CONNECTION_STATE_CHANGED", false)) {
                         isConnected = true;
                         bluetoothLeService.runUpdateTimer();
-                        //Save mac address so it can be used later to automatically connect
-                        //sharedPreferences = PreferenceManager.getDefaultSharedPreferences(requireActivity());
-                        //SharedPreferences.Editor editor = sharedPreferences.edit();
-                        //editor.putString("mac_address", macAddress);
-                        logQuick(macAddress);
-                        //editor.apply();
                         showDialog("Connected to: " + macAddress);
                     }
                     break;
@@ -353,7 +360,6 @@ public class SettingsFragment extends PreferenceFragmentCompat {
         } catch (NumberFormatException e) {
             return false; // Not a valid float
         }
-
         // Use a regular expression to ensure it has at most three digits after the decimal point
         String regex = "^\\d+\\.\\d{1,3}$|^\\d+$";
         return interval.matches(regex);
@@ -361,7 +367,6 @@ public class SettingsFragment extends PreferenceFragmentCompat {
     private final ServiceConnection serviceConnection = new ServiceConnection() {
         @Override
         public void onServiceConnected(ComponentName componentName, IBinder service) {
-            logQuick("fat cownk");
             BluetoothLeService.LocalBinder binder = (BluetoothLeService.LocalBinder) service;
             bluetoothLeService = binder.getService();
             MainActivity activity = (MainActivity) requireActivity();
@@ -372,8 +377,6 @@ public class SettingsFragment extends PreferenceFragmentCompat {
                 Log.e("BLE", "Unable to initialize Bluetooth");
                 requireActivity().finish();
             }
-
-            logQuick(String.valueOf(updateInterval));
             bluetoothLeService.connect(macAddress);
         }
 
@@ -403,22 +406,10 @@ public class SettingsFragment extends PreferenceFragmentCompat {
         requireActivity().unregisterReceiver(bleUpdateReceiver);
     }
 
-    public static boolean isValidUUID(String input) {
-        if (input == null || input.length() != 6) {
-            return false;
-        }
-        if (!input.startsWith("0x")) {
-            return false;
-        }
-        String hexPattern = "[0-9A-Fa-f]+";
-        String hexDigits = input.substring(2);
-        return hexDigits.matches(hexPattern);
-    }
-
     private void showDialog(String message) {
         AlertDialog.Builder builder = new AlertDialog.Builder(getActivity());
         builder.setMessage(message)
-                .setPositiveButton("OK", (dialog, which) -> {
+                .setPositiveButton("ok", (dialog, which) -> {
 
                 });
         AlertDialog dialog = builder.create();
@@ -441,5 +432,4 @@ public class SettingsFragment extends PreferenceFragmentCompat {
         }
         return converted.toString();
     }
-
 }

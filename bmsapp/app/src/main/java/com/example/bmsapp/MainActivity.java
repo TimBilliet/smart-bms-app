@@ -1,36 +1,22 @@
 package com.example.bmsapp;
 
-import static android.bluetooth.BluetoothGattCharacteristic.FORMAT_UINT8;
-
 import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.AlertDialog;
-import android.app.Dialog;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
 import android.bluetooth.BluetoothAdapter;
-import android.bluetooth.BluetoothDevice;
-import android.bluetooth.BluetoothGatt;
-import android.bluetooth.BluetoothGattCallback;
-import android.bluetooth.BluetoothGattCharacteristic;
-import android.bluetooth.BluetoothGattService;
-import android.bluetooth.BluetoothProfile;
 import android.content.BroadcastReceiver;
 import android.content.ComponentName;
 import android.content.Context;
-import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.ServiceConnection;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
-import android.graphics.Color;
-import android.graphics.PorterDuff;
-import android.graphics.drawable.Drawable;
-import android.graphics.drawable.DrawableContainer;
 import android.os.Build;
 import android.os.Bundle;
 import android.Manifest;
-
-import androidx.activity.OnBackPressedCallback;
 
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
@@ -39,17 +25,11 @@ import androidx.annotation.RequiresApi;
 import androidx.appcompat.app.AppCompatActivity;
 
 import android.os.IBinder;
-import android.text.SpannableString;
-import android.text.style.ForegroundColorSpan;
 import android.util.Log;
 
 import androidx.core.app.ActivityCompat;
 import androidx.core.app.NotificationCompat;
 import androidx.core.content.ContextCompat;
-import androidx.core.graphics.drawable.DrawableCompat;
-import androidx.fragment.app.Fragment;
-import androidx.fragment.app.FragmentManager;
-import androidx.lifecycle.ViewModelProvider;
 import androidx.navigation.NavController;
 import androidx.navigation.Navigation;
 import androidx.navigation.ui.AppBarConfiguration;
@@ -57,25 +37,12 @@ import androidx.navigation.ui.NavigationUI;
 import androidx.preference.PreferenceManager;
 
 import com.example.bmsapp.databinding.ActivityMainBinding;
-import com.google.android.material.appbar.AppBarLayout;
 
-import android.view.Gravity;
 import android.view.Menu;
-import android.view.MenuInflater;
 import android.view.MenuItem;
-import android.view.View;
-import android.view.Window;
-import android.widget.Button;
-import android.widget.FrameLayout;
-import android.widget.ImageView;
-import android.widget.Switch;
-import android.widget.TextView;
 import android.widget.Toast;
 
-import java.nio.charset.StandardCharsets;
-import java.util.List;
 import java.util.Objects;
-import java.util.Set;
 import java.util.regex.Pattern;
 
 public class MainActivity extends AppCompatActivity {
@@ -93,7 +60,9 @@ public class MainActivity extends AppCompatActivity {
     private boolean isConnected = false;
     private SharedPreferences sharedPreferences;
     private Menu menu;
-    private static final int MY_PERMISSION_REQUEST_CODE = 420;
+    private static final int NOTIF_PERMISSION_REQUEST_CODE = 69;
+    private static final int BT_PERMISSION_REQUEST_CODE = 420;
+    private static final String CHANNEL_ID = "1";
     String storedMac;
 
     @Override
@@ -138,7 +107,13 @@ public class MainActivity extends AppCompatActivity {
         sharedPreferences = PreferenceManager.getDefaultSharedPreferences(this);
         storedMac = sharedPreferences.getString("mac_address", "AA:AA:AA:AA:AA:AA");
         logQuick(storedMac);
-
+        if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            int importance = NotificationManager.IMPORTANCE_DEFAULT;
+            NotificationChannel channel = new NotificationChannel(CHANNEL_ID, "channel1", importance);
+            channel.setDescription("main notification channel");
+            NotificationManager notificationManager = getSystemService(NotificationManager.class);
+            notificationManager.createNotificationChannel(channel);
+        }
     }
 
     private void requestBluetoothEnable() {
@@ -175,7 +150,7 @@ public class MainActivity extends AppCompatActivity {
         if (ContextCompat.checkSelfPermission(
                 this, Manifest.permission.BLUETOOTH_CONNECT) !=
                 PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.BLUETOOTH_CONNECT}, MY_PERMISSION_REQUEST_CODE);
+            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.BLUETOOTH_CONNECT}, BT_PERMISSION_REQUEST_CODE);
         }
     }
     public boolean isValidMacAddress(String macAddress) {
@@ -187,23 +162,22 @@ public class MainActivity extends AppCompatActivity {
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
                                            @NonNull int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        // switch (requestCode) {
-        // case MY_PERMISSION_REQUEST_CODE:
-        if (grantResults.length > 0 &&
-                grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-            requestBluetoothEnable();
-        } else {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                new AlertDialog.Builder(this)
-                        .setTitle("Permission needed")
-                        .setMessage("Bluetooth permission needed for this app to function")
-                        .setPositiveButton("Request again", (dialog, which) -> requestBluetoothPermission())
-                        .setNegativeButton("Exit", (dialog, which) -> finish())
-                        .setIcon(android.R.drawable.ic_dialog_alert)
-                        .show();
+        logQuick("permission code: " + requestCode);
+        if (requestCode == 420) {
+            if (grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                requestBluetoothEnable();
+            } else {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    new AlertDialog.Builder(this)
+                            .setTitle("Permission needed")
+                            .setMessage("Bluetooth permission needed for this app to function")
+                            .setPositiveButton("Request again", (dialog, which) -> requestBluetoothPermission())
+                            .setNegativeButton("Exit", (dialog, which) -> finish())
+                            .setIcon(android.R.drawable.ic_dialog_alert)
+                            .show();
+                }
             }
         }
-        //}
     }
     public static String convertToUpperCase(String address) {
         if (address == null || address.isEmpty()) {
@@ -225,7 +199,6 @@ public class MainActivity extends AppCompatActivity {
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         getMenuInflater().inflate(R.menu.menu_main, menu);
-        //this.menu = menu;
         return true;
     }
     private void showDialog(String message) {
@@ -241,6 +214,7 @@ public class MainActivity extends AppCompatActivity {
     @SuppressLint("RestrictedApi")
     @Override
     public void onBackPressed() {
+        //TODO fix this, doesn't work properly
         logQuick(Objects.requireNonNull(Objects.requireNonNull(navController.getCurrentDestination()).getLabel()).toString());
         if (navController.getCurrentDestination().getLabel().toString().equals("Settings") || navController.getCurrentDestination().getLabel().toString().equals("About")) {
             hideOverflowMenu = false;
@@ -254,18 +228,14 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    private BroadcastReceiver connectionStateReceiver = new BroadcastReceiver() {
+    private BroadcastReceiver bleUpdateReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
-            // Handle the connection state change here
             isConnected = intent.getBooleanExtra("CONNECTION_STATE_CHANGED", false);
-            logQuick("isconnected in main: " + isConnected);
-            // Update connection with the correct colour
             if(Objects.equals(intent.getAction(), "3007")) {
-                Log.e(TAG, "FAULT RECEIVED");
                 byte[] faultCode = intent.getByteArrayExtra("3007");
                 String faultMessage = "";
-                switch (faultCode[0]) {
+                switch (Objects.requireNonNull(faultCode)[0]) {
                     case 1:
                         faultMessage = "Over current in discharge fault";
                         break;
@@ -293,10 +263,18 @@ public class MainActivity extends AppCompatActivity {
                             .setIcon(android.R.drawable.ic_dialog_alert)
                             .show();
                 }
-                if(sharedPreferences.getBoolean("receive_notifications", false)) {
-                    //new NotificationCompat.Builder(this, CHANNEL_ID)
+                if(sharedPreferences.getBoolean("receive_notifications", false) && faultCode[0] != 0
+                        && ContextCompat.checkSelfPermission(MainActivity.this, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED) {
+                    NotificationCompat.Builder builder = new NotificationCompat.Builder(MainActivity.this, CHANNEL_ID)
+                            .setSmallIcon(android.R.drawable.ic_dialog_alert)
+                            .setContentTitle("Fault occured!")
+                            .setContentText(faultMessage)
+                            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+                            .setAutoCancel(true);
+                    NotificationManager notificationManager = (NotificationManager) MainActivity.this.getSystemService(Context.NOTIFICATION_SERVICE);
+                    notificationManager.notify(0, builder.build());
+                    //TODO make notifications work when app is running in the background
                 }
-
             }
             if(isConnected) {
                 Toast.makeText(getApplicationContext(), "Connected.", Toast.LENGTH_LONG).show();
@@ -308,22 +286,19 @@ public class MainActivity extends AppCompatActivity {
     public void onResume() {
         super.onResume();
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            registerReceiver(connectionStateReceiver, new IntentFilter("CONNECTION_STATE_CHANGED"), Context.RECEIVER_NOT_EXPORTED);
-            registerReceiver(connectionStateReceiver, new IntentFilter("3007"), Context.RECEIVER_NOT_EXPORTED);
-
+            registerReceiver(bleUpdateReceiver, new IntentFilter("CONNECTION_STATE_CHANGED"), Context.RECEIVER_NOT_EXPORTED);
+            registerReceiver(bleUpdateReceiver, new IntentFilter("3007"), Context.RECEIVER_NOT_EXPORTED);
         }
     }
 
     @Override
     public void onPause() {
         super.onPause();
-        unregisterReceiver(connectionStateReceiver);
+        unregisterReceiver(bleUpdateReceiver);
     }
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
-        // Handle action bar item clicks here.
         int id = item.getItemId();
-
         if (id == R.id.action_about) {
             navController.navigate(R.id.AboutFragment);
             hideOverflowMenu = true;
@@ -339,18 +314,13 @@ public class MainActivity extends AppCompatActivity {
             hideOverflowMenu = false;
             supportInvalidateOptionsMenu();
             navController.navigate(R.id.HomeFragment);
-
         } else if(id == R.id.manual_refresh){
-            logQuick("refresh press");
             if(bluetoothLeService != null && isConnected) {
-                logQuick("bluetooth characteristic read from mainactivity");
-                //bluetoothLeService.readAllCharacteristics();
                 bluetoothLeService.readCharacteristicsForHomefragment();
             } else {
                 Toast.makeText(getApplicationContext(), "Not connected.", Toast.LENGTH_LONG).show();
             }
         } else if(id == R.id.power_off) {
-            logQuick("power off");
             if(bluetoothLeService != null && isConnected) {
                 showPowerOffDialog();
             } else {
@@ -383,8 +353,6 @@ public class MainActivity extends AppCompatActivity {
         bluetoothLeService.writeCharacteristic("4007", value);
         isConnected = false;
     }
-
-
 
     @Override
     public boolean onPrepareOptionsMenu(Menu menu) {
