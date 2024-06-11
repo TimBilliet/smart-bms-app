@@ -48,6 +48,7 @@ public class BluetoothLeService extends Service {
     private List<BluetoothGattCharacteristic> tempHomefragmentBluetoothGattCharacteristicList = new ArrayList<>();
     private List<BluetoothGattDescriptor> characteristicsToGetNotificationsOnList = new ArrayList<>();
     private boolean readingHomefragmentCharacteristics = false;
+    private boolean isMinimized = false;
     private boolean isHomefragment = false;
     public class LocalBinder extends Binder {
         BluetoothLeService getService() {
@@ -195,6 +196,9 @@ public class BluetoothLeService extends Service {
     public void logQuick(String message) {
         Log.d(TAG, message);
     }
+    public void setIsMinimized(boolean minimized) {
+        isMinimized = minimized;
+    }
 
     private final BluetoothGattCallback gattCallback = new BluetoothGattCallback() {
         @Override
@@ -259,13 +263,23 @@ public class BluetoothLeService extends Service {
         }
         @Override
         public void onCharacteristicChanged(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic) {
-            logQuick("notify received from: " + characteristic.getUuid().toString());
-            String uuid = characteristic.getUuid().toString().substring(4, 8);
-            byte[] data = characteristic.getValue();
-            Intent intent = new Intent(uuid);
-            intent.putExtra(uuid, data);
-            sendBroadcast(intent);
+            if(!isMinimized && !characteristic.getUuid().toString().startsWith("3007", 4)) {
+                logQuick("notify received from: " + characteristic.getUuid().toString());
+                String uuid = characteristic.getUuid().toString().substring(4, 8);
+                byte[] data = characteristic.getValue();
+                Intent intent = new Intent(uuid);
+                intent.putExtra(uuid, data);
+                sendBroadcast(intent);
+            } else if(characteristic.getUuid().toString().startsWith("3007", 4)) {
+                logQuick("notify received from: " + characteristic.getUuid().toString());
+                String uuid = characteristic.getUuid().toString().substring(4, 8);
+                byte[] data = characteristic.getValue();
+                Intent intent = new Intent(uuid);
+                intent.putExtra(uuid, data);
+                sendBroadcast(intent);
+            }
         }
+
         @Override
         public void onCharacteristicRead(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, int status) {
             String uuid = characteristic.getUuid().toString().substring(4, 8);

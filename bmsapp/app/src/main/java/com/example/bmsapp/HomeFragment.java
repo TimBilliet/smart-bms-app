@@ -249,7 +249,7 @@ public class HomeFragment extends Fragment{
     @Override
     public void onPause() {
         super.onPause();
-        requireActivity().unregisterReceiver(bleUpdateReceiver);
+        //requireActivity().unregisterReceiver(bleUpdateReceiver);
     }
 
     public void onViewCreated(@NonNull View view, Bundle savedInstanceState) {

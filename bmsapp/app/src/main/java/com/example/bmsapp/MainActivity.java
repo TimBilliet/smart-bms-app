@@ -152,6 +152,7 @@ public class MainActivity extends AppCompatActivity {
             }
             bluetoothLeService.runUpdateTimer();
             bluetoothLeService.connect(convertToUpperCase(storedMac));
+            bluetoothLeService.setIsMinimized(false);
         }
 
         @Override
@@ -261,8 +262,10 @@ public class MainActivity extends AppCompatActivity {
                             .setIcon(android.R.drawable.ic_dialog_alert)
                             .show();
                 }
+                logQuick("show notif");
                 if(sharedPreferences.getBoolean("receive_notifications", false) && faultCode[0] != 0
                         && ContextCompat.checkSelfPermission(MainActivity.this, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED) {
+                    logQuick("show notification");
                     NotificationCompat.Builder builder = new NotificationCompat.Builder(MainActivity.this, CHANNEL_ID)
                             .setSmallIcon(android.R.drawable.ic_dialog_alert)
                             .setContentTitle("Fault occured!")
@@ -271,7 +274,6 @@ public class MainActivity extends AppCompatActivity {
                             .setAutoCancel(true);
                     NotificationManager notificationManager = (NotificationManager) MainActivity.this.getSystemService(Context.NOTIFICATION_SERVICE);
                     notificationManager.notify(0, builder.build());
-                    //TODO make notifications work when app is running in the background
                 }
             }
             if(isConnected) {
@@ -282,6 +284,9 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     public void onResume() {
+        if(bluetoothLeService != null) {
+            bluetoothLeService.setIsMinimized(false);
+        }
         super.onResume();
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             registerReceiver(bleUpdateReceiver, new IntentFilter("CONNECTION_STATE_CHANGED"), Context.RECEIVER_NOT_EXPORTED);
@@ -292,7 +297,10 @@ public class MainActivity extends AppCompatActivity {
     @Override
     public void onPause() {
         super.onPause();
-        unregisterReceiver(bleUpdateReceiver);
+        if(bluetoothLeService != null) {
+            bluetoothLeService.setIsMinimized(true);
+        }
+       // unregisterReceiver(bleUpdateReceiver);
     }
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {

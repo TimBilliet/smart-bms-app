@@ -381,7 +381,7 @@ public class SettingsFragment extends PreferenceFragmentCompat {
     @Override
     public void onPause() {
         super.onPause();
-        requireActivity().unregisterReceiver(bleUpdateReceiver);
+        //requireActivity().unregisterReceiver(bleUpdateReceiver);
     }
 
     private void showDialog(String message) {
