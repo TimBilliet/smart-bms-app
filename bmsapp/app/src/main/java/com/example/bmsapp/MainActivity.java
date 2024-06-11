@@ -6,6 +6,7 @@ import android.app.AlertDialog;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.bluetooth.BluetoothAdapter;
+import android.bluetooth.BluetoothProfile;
 import android.content.BroadcastReceiver;
 import android.content.ComponentName;
 import android.content.Context;
@@ -56,7 +57,6 @@ public class MainActivity extends AppCompatActivity {
     private ActivityResultLauncher<Intent> enableBtLauncher;
     private BluetoothLeService bluetoothLeService;
     NavController navController;
-    private boolean isConnected = false;
     private SharedPreferences sharedPreferences;
     private static final int BT_PERMISSION_REQUEST_CODE = 420;
     private static final String CHANNEL_ID = "1";
@@ -150,7 +150,6 @@ public class MainActivity extends AppCompatActivity {
                 showDialog("Unable to initialize Bluetooth");
                 finish();
             }
-            bluetoothLeService.runUpdateTimer();
             bluetoothLeService.connect(convertToUpperCase(storedMac));
             bluetoothLeService.setIsMinimized(false);
         }
@@ -230,7 +229,6 @@ public class MainActivity extends AppCompatActivity {
     private final BroadcastReceiver bleUpdateReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
-            isConnected = intent.getBooleanExtra("CONNECTION_STATE_CHANGED", false);
             if(Objects.equals(intent.getAction(), "3007")) {
                 byte[] faultCode = intent.getByteArrayExtra("3007");
                 String faultMessage = "";
@@ -276,9 +274,6 @@ public class MainActivity extends AppCompatActivity {
                     notificationManager.notify(0, builder.build());
                 }
             }
-            if(isConnected) {
-                Toast.makeText(getApplicationContext(), "Connected.", Toast.LENGTH_LONG).show();
-            }
         }
     };
 
@@ -289,7 +284,6 @@ public class MainActivity extends AppCompatActivity {
         }
         super.onResume();
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            registerReceiver(bleUpdateReceiver, new IntentFilter("CONNECTION_STATE_CHANGED"), Context.RECEIVER_NOT_EXPORTED);
             registerReceiver(bleUpdateReceiver, new IntentFilter("3007"), Context.RECEIVER_NOT_EXPORTED);
         }
     }
@@ -321,13 +315,13 @@ public class MainActivity extends AppCompatActivity {
             supportInvalidateOptionsMenu();
             navController.navigate(R.id.HomeFragment);
         } else if(id == R.id.manual_refresh){
-            if(bluetoothLeService != null && isConnected) {
+            if(bluetoothLeService != null && bluetoothLeService.getConnectionState() == BluetoothProfile.STATE_CONNECTED) {
                 bluetoothLeService.readCharacteristicsForHomefragment();
             } else {
                 Toast.makeText(getApplicationContext(), "Not connected.", Toast.LENGTH_LONG).show();
             }
         } else if(id == R.id.power_off) {
-            if(bluetoothLeService != null && isConnected) {
+            if(bluetoothLeService != null && bluetoothLeService.getConnectionState() == BluetoothProfile.STATE_CONNECTED) {
                 showPowerOffDialog();
             } else {
                 Toast.makeText(getApplicationContext(), "Not connected.", Toast.LENGTH_LONG).show();
@@ -357,7 +351,6 @@ public class MainActivity extends AppCompatActivity {
     private void shutdownBms() {
         byte[] value = {0};
         bluetoothLeService.writeCharacteristic("4007", value);
-        isConnected = false;
     }
 
     @Override

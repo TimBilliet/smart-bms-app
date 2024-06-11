@@ -1,8 +1,12 @@
 package com.example.bmsapp;
 
+import static androidx.core.content.ContextCompat.getSystemService;
+
 import android.Manifest;
 import android.app.AlertDialog;
 import android.bluetooth.BluetoothGattDescriptor;
+import android.bluetooth.BluetoothManager;
+import android.bluetooth.BluetoothProfile;
 import android.content.BroadcastReceiver;
 import android.content.ComponentName;
 import android.content.Context;
@@ -38,8 +42,6 @@ public class SettingsFragment extends PreferenceFragmentCompat {
     public static final String TAG = "Settingsfragment";
     private static final Pattern pattern = Pattern.compile(MAC_ADDRESS_PATTERN);
     private String macAddress;
-    private float updateInterval;
-    private boolean isConnected = false;
     private EditTextPreference macAddressPreference;
     private SwitchPreference notificationPreference;
     private SwitchPreference autoUpdatePreference;
@@ -57,13 +59,10 @@ public class SettingsFragment extends PreferenceFragmentCompat {
 
     @Override
     public void onAttach(@NonNull Context context) {
-
         logQuick("ATTACHED TO SETTINGSFRAG");
         MainActivity activity = (MainActivity) requireActivity();
         if(activity.getBluetoothservice() != null) {
             bluetoothLeService = activity.getBluetoothservice();
-            isConnected = bluetoothLeService.getConnectionStatus();
-            bluetoothLeService.setIsHomefragment(false);
         }
         super.onAttach(context);
     }
@@ -95,7 +94,6 @@ public class SettingsFragment extends PreferenceFragmentCompat {
                     this.macAddress = convertToUpperCase((String) macAddress);
                     Intent gattServiceIntent = new Intent(getActivity(), BluetoothLeService.class);
                     requireActivity().bindService(gattServiceIntent, serviceConnection, Context.BIND_AUTO_CREATE);
-                    updateInterval = Float.parseFloat(sharedPreferences.getString("update_interval", "1"));
                 }
                 return true;
             });
@@ -110,7 +108,7 @@ public class SettingsFragment extends PreferenceFragmentCompat {
         }
         if(autoUpdatePreference != null) {
             autoUpdatePreference.setOnPreferenceChangeListener((preference, toggle) -> {
-                if(isConnected) {
+                if(bluetoothLeService.getConnectionState() == BluetoothProfile.STATE_CONNECTED) {
                     if ((boolean) toggle) {
                         logQuick("notifications on");
                         bluetoothLeService.toggleNotifications(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE);
@@ -126,7 +124,7 @@ public class SettingsFragment extends PreferenceFragmentCompat {
         }
         if(onlyBalanceWhileChargingPreference != null) {
             onlyBalanceWhileChargingPreference.setOnPreferenceChangeListener(((preference, toggle) -> {
-                if(isConnected) {
+                if(bluetoothLeService.getConnectionState() == BluetoothProfile.STATE_CONNECTED) {
                     byte[] data = new byte[1];
                     if ((boolean) toggle) {
                         logQuick("ON ON WE OIN");
@@ -143,7 +141,7 @@ public class SettingsFragment extends PreferenceFragmentCompat {
         }
         if(shuntResistorPreference != null) {
             shuntResistorPreference.setOnPreferenceChangeListener(((preference, resistance) -> {
-                if(isConnected) {
+                if(bluetoothLeService.getConnectionState() == BluetoothProfile.STATE_CONNECTED) {
                     if(((String)resistance).matches("\\d+")) {
                         byte[] data = new byte[1];
                         data[0] = Byte.parseByte((String) resistance);
@@ -159,7 +157,7 @@ public class SettingsFragment extends PreferenceFragmentCompat {
         }
         if(overChargeCurrentPreference != null) {
             overChargeCurrentPreference.setOnPreferenceChangeListener(((preference, current) -> {
-                if(isConnected) {
+                if(bluetoothLeService.getConnectionState() == BluetoothProfile.STATE_CONNECTED) {
                     if(((String)current).matches("\\d+") && ((String)current).length() <= 5) {
                         byte[] data = new byte[2];
                         data[0] = (byte) (Integer.parseInt((String)current) & 0xFF);
@@ -176,7 +174,7 @@ public class SettingsFragment extends PreferenceFragmentCompat {
         }
         if(underVoltagePreference != null) {
             underVoltagePreference.setOnPreferenceChangeListener( ((preference, voltage) -> {
-                 if(isConnected) {
+                 if(bluetoothLeService.getConnectionState() == BluetoothProfile.STATE_CONNECTED) {
                      if(((String)voltage).matches("\\d+") && ((String)voltage).length() == 4) {
                          byte[] data = new byte[2];
                          data[0] = (byte) (Integer.parseInt((String)voltage) & 0xFF);
@@ -193,7 +191,7 @@ public class SettingsFragment extends PreferenceFragmentCompat {
         }
         if(overVoltagePreference != null) {
             overVoltagePreference.setOnPreferenceChangeListener( ((preference, voltage) -> {
-                if(isConnected) {
+                if(bluetoothLeService.getConnectionState() == BluetoothProfile.STATE_CONNECTED) {
                     if(((String)voltage).matches("\\d+") && ((String)voltage).length() == 4) {
                         byte[] data = new byte[2];
                         data[0] = (byte) (Integer.parseInt((String)voltage) & 0xFF);
@@ -210,7 +208,7 @@ public class SettingsFragment extends PreferenceFragmentCompat {
         }
         if(minimumBalanceVoltagePreference != null) {
             minimumBalanceVoltagePreference.setOnPreferenceChangeListener( ((preference, voltage) -> {
-                if(isConnected) {
+                if(bluetoothLeService.getConnectionState() == BluetoothProfile.STATE_CONNECTED) {
                     if(((String)voltage).matches("\\d+") && ((String)voltage).length() == 4) {
                         byte[] data = new byte[4];
                         data[0] = (byte) (Integer.parseInt((String)voltage) & 0xFF);
@@ -231,7 +229,7 @@ public class SettingsFragment extends PreferenceFragmentCompat {
         }
         if(maximumCellVoltageDifferencePreference != null) {
             maximumCellVoltageDifferencePreference.setOnPreferenceChangeListener( ((preference, voltage) -> {
-                if(isConnected) {
+                if(bluetoothLeService.getConnectionState() == BluetoothProfile.STATE_CONNECTED) {
                     if(((String)voltage).matches("\\d+") && ((String)voltage).length() <=3) {
                         byte[] data = new byte[4];
                         String minBalanceVoltageS = minimumBalanceVoltagePreference.getText();
@@ -252,7 +250,7 @@ public class SettingsFragment extends PreferenceFragmentCompat {
         }
         if(idleCurrentPreference != null) {
             idleCurrentPreference.setOnPreferenceChangeListener( ((preference, voltage) -> {
-                if(isConnected) {
+                if(bluetoothLeService.getConnectionState() == BluetoothProfile.STATE_CONNECTED) {
                     if(((String)voltage).matches("\\d+") && Integer.parseInt((String)voltage) <= 255 ) {
                         byte[] data = new byte[1];
                         data[0] = (byte) (Integer.parseInt((String)voltage) & 0xFF);
@@ -283,8 +281,6 @@ public class SettingsFragment extends PreferenceFragmentCompat {
             switch (Objects.requireNonNull(action)) {
                 case "CONNECTION_STATE_CHANGED":
                     if(intent.getBooleanExtra("CONNECTION_STATE_CHANGED", false)) {
-                        isConnected = true;
-                        bluetoothLeService.runUpdateTimer();
                         showDialog("Connected to: " + macAddress);
                     }
                     break;
@@ -363,6 +359,7 @@ public class SettingsFragment extends PreferenceFragmentCompat {
             bluetoothLeService = null;
         }
     };
+    @RequiresApi(api = Build.VERSION_CODES.TIRAMISU)
     @Override
     public void onResume() {
         super.onResume();

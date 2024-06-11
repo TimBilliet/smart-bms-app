@@ -1,5 +1,7 @@
 package com.example.bmsapp;
 
+import android.bluetooth.BluetoothAdapter;
+import android.bluetooth.BluetoothManager;
 import android.content.BroadcastReceiver;
 import android.content.ComponentName;
 import android.content.Context;
@@ -45,13 +47,11 @@ public class HomeFragment extends Fragment{
     private double chargeCurrentA;
     private final Handler handlerToast = new Handler(Looper.getMainLooper());
     private BluetoothLeService bluetoothLeService;
-    private boolean isConnected;
     private  boolean onlyBalanceWhileCharging = true;
 
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.fragment_home, container, false);
-
         textViewBatVoltage = view.findViewById(R.id.textViewBatVoltage);
         textViewCurrent = view.findViewById(R.id.textViewCurrent);
         textViewCellVoltagesList.add(view.findViewById(R.id.textViewCellVoltage1));
@@ -90,7 +90,7 @@ public class HomeFragment extends Fragment{
         enableChargingSwitch = view.findViewById(R.id.switchCharging);
         //sharedPreferences = PreferenceManager.getDefaultSharedPreferences(requireActivity());
         enableBalancingSwitch.setOnClickListener(v -> {
-            if(bluetoothLeService != null) {
+            if(bluetoothLeService != null && bluetoothLeService.getConnectionState() == BluetoothAdapter.STATE_CONNECTED) {
                 byte[] data = {0};
                 if(enableBalancingSwitch.isChecked()) {
                     if(onlyBalanceWhileCharging) {
@@ -106,15 +106,21 @@ public class HomeFragment extends Fragment{
                     }
                 }
                 bluetoothLeService.writeCharacteristic("3005", data);
+            } else {
+                handlerToast.post(() -> Toast.makeText(requireContext(), "Not connected", Toast.LENGTH_SHORT).show());
+                enableBalancingSwitch.setChecked(false);
             }
         });
         enableChargingSwitch.setOnClickListener(v -> {
-            if(bluetoothLeService != null) {
+            if(bluetoothLeService != null && bluetoothLeService.getConnectionState() == BluetoothAdapter.STATE_CONNECTED) {
                 byte[] data = {0};
                 if(enableChargingSwitch.isChecked()) {
                     data[0] = 1;
                 }
                 bluetoothLeService.writeCharacteristic("3006", data);
+            } else {
+                handlerToast.post(() -> Toast.makeText(requireContext(), "Not connected", Toast.LENGTH_SHORT).show());
+                enableChargingSwitch.setChecked(false);
             }
         });
 
@@ -132,12 +138,6 @@ public class HomeFragment extends Fragment{
             String action = intent.getAction();
             byte[] data;
             switch (Objects.requireNonNull(action)) {
-                case "CONNECTION_STATE_CHANGED":
-                    if(intent.getBooleanExtra("CONNECTION_STATE_CHANGED", false)) {
-                        isConnected = true;
-                        bluetoothLeService.setIsHomefragment(true);
-                    }
-                    break;
                 case "3001":  // pack voltage and charge current
                     data = intent.getByteArrayExtra("3001");
                     int batVoltagemv = ((data[1] & 0xFF) << 8) | (data[0] & 0xFF);
@@ -222,7 +222,6 @@ public class HomeFragment extends Fragment{
     @Override
     public void onResume() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            requireActivity().registerReceiver(bleUpdateReceiver, new IntentFilter("CONNECTION_STATE_CHANGED"), Context.RECEIVER_NOT_EXPORTED);
             requireActivity().registerReceiver(bleUpdateReceiver, new IntentFilter("3001"), Context.RECEIVER_NOT_EXPORTED);
             requireActivity().registerReceiver(bleUpdateReceiver, new IntentFilter("3002"), Context.RECEIVER_NOT_EXPORTED);
             requireActivity().registerReceiver(bleUpdateReceiver, new IntentFilter("3003"), Context.RECEIVER_NOT_EXPORTED);
@@ -239,10 +238,6 @@ public class HomeFragment extends Fragment{
         MainActivity activity = (MainActivity) requireActivity();
         if(activity.getBluetoothservice() != null) {
             bluetoothLeService = activity.getBluetoothservice();
-        }
-        if(bluetoothLeService != null) {
-            bluetoothLeService.setIsHomefragment(true);
-            bluetoothLeService.runUpdateTimer();
         }
         super.onAttach(context);
     }

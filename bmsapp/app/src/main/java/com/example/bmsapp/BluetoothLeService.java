@@ -36,10 +36,6 @@ public class BluetoothLeService extends Service {
     private BluetoothAdapter bluetoothAdapter;
     public static final String TAG = "BluetoothLeService";
     private BluetoothGatt bluetoothGatt;
-    private long updateInterval = 0;
-    private Handler handler;
-    private Runnable runnable;
-    private boolean isConnected = false;
     private final IBinder binder = new LocalBinder();
     private final Handler handlerToast = new Handler(Looper.getMainLooper());
     private final List<BluetoothGattCharacteristic> bluetoothGattCharacteristicList = new ArrayList<>();
@@ -49,7 +45,8 @@ public class BluetoothLeService extends Service {
     private List<BluetoothGattDescriptor> characteristicsToGetNotificationsOnList = new ArrayList<>();
     private boolean readingHomefragmentCharacteristics = false;
     private boolean isMinimized = false;
-    private boolean isHomefragment = false;
+    private BluetoothDevice device;
+
     public class LocalBinder extends Binder {
         BluetoothLeService getService() {
             return BluetoothLeService.this;
@@ -77,23 +74,10 @@ public class BluetoothLeService extends Service {
         }
         SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(this);
         logQuick(sharedPreferences.getString("update_interval", "1"));
-        handler = new Handler();
-        runnable = new Runnable() {
-            @Override
-            public void run() {
-                if (updateInterval > 0 && isHomefragment) {
-                    logQuick(String.valueOf(updateInterval));
-                    requestHomefragmentCharacteristics();
-                    handler.postDelayed(this, updateInterval);
-                }
-            }
-        };
         return true;
     }
 
-    public void setIsHomefragment(boolean isHomefragment) {
-        this.isHomefragment = isHomefragment;
-    }
+
 
     public void connect(final String address) {
         if (bluetoothAdapter == null || address == null) {
@@ -101,7 +85,7 @@ public class BluetoothLeService extends Service {
             return;
         }
 
-        final BluetoothDevice device = bluetoothAdapter.getRemoteDevice(address);
+        device = bluetoothAdapter.getRemoteDevice(address);
         if (device == null) {
             handlerToast.post(() -> Toast.makeText(this, "Device not found. Unable to connect.", Toast.LENGTH_LONG).show());
             return;
@@ -113,29 +97,13 @@ public class BluetoothLeService extends Service {
         bluetoothGatt = device.connectGatt(this, false, gattCallback);
     }
 
-    public void runUpdateTimer() {
-        SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(this);
-        try {
-            updateInterval = (long) (1000L * Float.parseFloat(sharedPreferences.getString("update_interval", "0")));
-
-        } catch (Exception ignored) {
-
+    public int getConnectionState() {
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED) {
+            return bluetoothManager.getConnectionState(device, BluetoothGatt.GATT);
         }
-        handler.postDelayed(runnable, updateInterval);
+        return 99;
     }
 
-    public void updateInterval(float interval) {
-        logQuick("updateinterval ");
-        if (interval > 0 && isConnected) {
-            updateInterval = (long) (interval * 1000L);
-            //Restart timer
-            logQuick(String.valueOf(updateInterval));
-            handler.removeCallbacks(runnable);
-            handler.postDelayed(runnable, updateInterval);
-        } else {
-            handler.removeCallbacks(runnable);
-        }
-    }
     private void toggleFaultNotifications() {
         if (ActivityCompat.checkSelfPermission(getApplicationContext(), Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
             return;
@@ -208,19 +176,18 @@ public class BluetoothLeService extends Service {
                 if (ActivityCompat.checkSelfPermission(getApplicationContext(), android.Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
                     return;
                 }
-                isConnected = true;
+                handlerToast.post(() -> Toast.makeText(getApplicationContext(), "Connected", Toast.LENGTH_LONG).show());
                 Intent intent = new Intent("CONNECTION_STATE_CHANGED");
                 intent.putExtra("CONNECTION_STATE_CHANGED", true);
                 sendBroadcast(intent);
                 bluetoothGatt.discoverServices();
+
             } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
                 Log.i(TAG, "Disconnected from GATT server.");
-                handlerToast.post(() -> Toast.makeText(getApplicationContext(), "Disconnected.", Toast.LENGTH_LONG).show());
+                handlerToast.post(() -> Toast.makeText(getApplicationContext(), "Disconnected", Toast.LENGTH_LONG).show());
                 Intent intent = new Intent("CONNECTION_STATE_CHANGED");
-                handler.removeCallbacks(runnable);//stop timer
                 intent.putExtra("CONNECTION_STATE_CHANGED", false);
                 sendBroadcast(intent);
-                isConnected = false;
             }
         }
 
@@ -339,9 +306,7 @@ public class BluetoothLeService extends Service {
         }
         bluetoothGatt.readCharacteristic(characteristic);
     }
-    public boolean getConnectionStatus() {
-        return isConnected;
-    }
+
 
     public BluetoothGatt getBluetoothGatt() {
         return bluetoothGatt;
@@ -385,7 +350,7 @@ public class BluetoothLeService extends Service {
             return;
         }
         logQuick("uuid: " + uuid);
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && isConnected) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && getConnectionState() == BluetoothProfile.STATE_CONNECTED) {
             bluetoothGatt.writeCharacteristic(Objects.requireNonNull(getCharacteristicByUUID(uuid)), value, BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT);
         }
     }

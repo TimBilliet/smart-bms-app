@@ -16,6 +16,7 @@
             app:key="auto_update"
             app:title="Auto update"
             app:summary="Automatically receive new values when they change"
+            app:defaultValue="false"
             />
 
     </PreferenceCategory>
