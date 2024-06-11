@@ -44,6 +44,7 @@ import android.text.style.ForegroundColorSpan;
 import android.util.Log;
 
 import androidx.core.app.ActivityCompat;
+import androidx.core.app.NotificationCompat;
 import androidx.core.content.ContextCompat;
 import androidx.core.graphics.drawable.DrawableCompat;
 import androidx.fragment.app.Fragment;
@@ -90,7 +91,7 @@ public class MainActivity extends AppCompatActivity {
     private MainActivity thisActivity;
     NavController navController;
     private boolean isConnected = false;
-
+    private SharedPreferences sharedPreferences;
     private Menu menu;
     private static final int MY_PERMISSION_REQUEST_CODE = 420;
     String storedMac;
@@ -115,7 +116,9 @@ public class MainActivity extends AppCompatActivity {
                     .setIcon(android.R.drawable.ic_dialog_alert)
                     .show();
         }
-        requestBluetoothPermission();
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            requestBluetoothPermission();
+        }
         enableBtLauncher = registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), result -> {
             if (result.getResultCode() != Activity.RESULT_OK) {
                 new AlertDialog.Builder(this)
@@ -127,10 +130,12 @@ public class MainActivity extends AppCompatActivity {
                         .show();
             }
         });
-        requestBluetoothEnable();
+        if(ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED) {
+            requestBluetoothEnable();
+        }
         Intent gattServiceIntent = new Intent(this, BluetoothLeService.class);
         this.bindService(gattServiceIntent, serviceConnection, Context.BIND_AUTO_CREATE);
-        SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(this);
+        sharedPreferences = PreferenceManager.getDefaultSharedPreferences(this);
         storedMac = sharedPreferences.getString("mac_address", "AA:AA:AA:AA:AA:AA");
         logQuick(storedMac);
 
@@ -188,13 +193,15 @@ public class MainActivity extends AppCompatActivity {
                 grantResults[0] == PackageManager.PERMISSION_GRANTED) {
             requestBluetoothEnable();
         } else {
-            new AlertDialog.Builder(this)
-                    .setTitle("Permission needed")
-                    .setMessage("Bluetooth permission needed for this app to function")
-                    .setPositiveButton("Request again", (dialog, which) -> requestBluetoothPermission())
-                    .setNegativeButton("Exit", (dialog, which) -> finish())
-                    .setIcon(android.R.drawable.ic_dialog_alert)
-                    .show();
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                new AlertDialog.Builder(this)
+                        .setTitle("Permission needed")
+                        .setMessage("Bluetooth permission needed for this app to function")
+                        .setPositiveButton("Request again", (dialog, which) -> requestBluetoothPermission())
+                        .setNegativeButton("Exit", (dialog, which) -> finish())
+                        .setIcon(android.R.drawable.ic_dialog_alert)
+                        .show();
+            }
         }
         //}
     }
@@ -250,15 +257,49 @@ public class MainActivity extends AppCompatActivity {
     private BroadcastReceiver connectionStateReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
-            Log.i("main","received connection changed status in mainactivity");
-
             // Handle the connection state change here
             isConnected = intent.getBooleanExtra("CONNECTION_STATE_CHANGED", false);
+            logQuick("isconnected in main: " + isConnected);
             // Update connection with the correct colour
+            if(Objects.equals(intent.getAction(), "3007")) {
+                Log.e(TAG, "FAULT RECEIVED");
+                byte[] faultCode = intent.getByteArrayExtra("3007");
+                String faultMessage = "";
+                switch (faultCode[0]) {
+                    case 1:
+                        faultMessage = "Over current in discharge fault";
+                        break;
+                    case 2:
+                        faultMessage = "Short circuit in discharge fault";
+                        break;
+                    case 4:
+                        faultMessage = "Overvoltage fault";
+                        break;
+                    case 8:
+                        faultMessage = "Undervoltage fault";
+                        break;
+                    case 16:
+                        faultMessage = "Alert fault";
+                        break;
+                    case 32:
+                        faultMessage = "Internal chip fault";
+                        break;
+                }
+                if(sharedPreferences.getBoolean("receive_pop_up_dialog", false) && faultCode[0] != 0) {
+                    new AlertDialog.Builder(MainActivity.this)
+                            .setTitle("Fault occured")
+                            .setMessage(faultMessage)
+                            .setPositiveButton("ok", null)
+                            .setIcon(android.R.drawable.ic_dialog_alert)
+                            .show();
+                }
+                if(sharedPreferences.getBoolean("receive_notifications", false)) {
+                    //new NotificationCompat.Builder(this, CHANNEL_ID)
+                }
+
+            }
             if(isConnected) {
                 Toast.makeText(getApplicationContext(), "Connected.", Toast.LENGTH_LONG).show();
-            } else {
-             //   Toast.makeText(getApplicationContext(), "Disconnected.", Toast.LENGTH_LONG).show();
             }
         }
     };
@@ -266,9 +307,10 @@ public class MainActivity extends AppCompatActivity {
     @Override
     public void onResume() {
         super.onResume();
-        IntentFilter intentFilter = new IntentFilter("CONNECTION_STATE_CHANGED");
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            registerReceiver(connectionStateReceiver, intentFilter, Context.RECEIVER_NOT_EXPORTED);
+            registerReceiver(connectionStateReceiver, new IntentFilter("CONNECTION_STATE_CHANGED"), Context.RECEIVER_NOT_EXPORTED);
+            registerReceiver(connectionStateReceiver, new IntentFilter("3007"), Context.RECEIVER_NOT_EXPORTED);
+
         }
     }
 

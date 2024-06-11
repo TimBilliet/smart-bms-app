@@ -124,11 +124,11 @@ public class SettingsFragment extends PreferenceFragmentCompat {
                   //  byte[] data = new byte[1];
                     if ((boolean) toggle) {
                         logQuick("notifications on");
-                        bluetoothLeService.toggleNotifications(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE);
+                        bluetoothLeService.toggleNotifications(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE, false);
                       //  data[0] = 1;
                     } else {
                         logQuick("notifications off");
-                        bluetoothLeService.toggleNotifications(BluetoothGattDescriptor.DISABLE_NOTIFICATION_VALUE);
+                        bluetoothLeService.toggleNotifications(BluetoothGattDescriptor.DISABLE_NOTIFICATION_VALUE, false);
                     }
                 } else {
                     handlerToast.post(() -> Toast.makeText(getContext(), "Not connected.", Toast.LENGTH_LONG).show());

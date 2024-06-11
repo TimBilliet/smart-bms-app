@@ -153,8 +153,10 @@ public class HomeFragment extends Fragment{
                     int chargeCurrentmA = ((data[3] & 0xFF) << 8) | (data[2] & 0xFF);
                     double batVoltagev = batVoltagemv / 1000.0;
                     chargeCurrentA = chargeCurrentmA / 1000.0;
+                    if(chargeCurrentA > 0.01) {
+                        textViewCurrent.setText(df.format(chargeCurrentA));
+                    }
                     textViewBatVoltage.setText(df.format(batVoltagev));
-                    textViewCurrent.setText(df.format(chargeCurrentA));
                     break;
                 case "3002":  // cell voltages
                     data = intent.getByteArrayExtra("3002");

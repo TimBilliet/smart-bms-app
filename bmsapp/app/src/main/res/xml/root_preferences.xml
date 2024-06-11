@@ -7,12 +7,19 @@
             app:title="App update interval(s)"
             app:useSimpleSummaryProvider="true"
             />
-
+        <SwitchPreference
+            app:key="receive_notifications"
+            app:title="Enable fault notifications"
+            app:defaultValue="false"
+            />
+        <SwitchPreference
+            app:key="receive_pop_up_dialog"
+            app:title="Enable fault pop up"
+            app:defaultValue="true"
+            />
         <SwitchPreference
             app:key="auto_update"
             app:title="Auto update"
-            app:switchTextOn="ON"
-            app:switchTextOff="OFF"
             app:summary="Automatically receive new values when they change"
             />
 
