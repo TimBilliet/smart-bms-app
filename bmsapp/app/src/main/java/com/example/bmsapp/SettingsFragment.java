@@ -114,9 +114,7 @@ public class SettingsFragment extends PreferenceFragmentCompat {
             onlyBalanceWhileChargingPreference.setOnPreferenceChangeListener(((preference, toggle) -> {
                 if (bluetoothLeService.getConnectionState() == BluetoothProfile.STATE_CONNECTED) {
                     byte[] data = new byte[1];
-                    if ((boolean) toggle) {
-                        data[0] = 1;
-                    }
+                    data[0] = (byte)((boolean)toggle ? 1 : 0);
                     bluetoothLeService.writeCharacteristic("4008", data);
                 } else {
                     handlerToast.post(() -> Toast.makeText(getContext(), "Not connected.", Toast.LENGTH_LONG).show());

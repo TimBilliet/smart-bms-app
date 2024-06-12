@@ -43,8 +43,10 @@ public class BluetoothLeService extends Service {
     private final List<BluetoothGattCharacteristic> homefragmentBluetoothGattCharacteristicList = new ArrayList<>();
     private final List<BluetoothGattCharacteristic> tempHomefragmentBluetoothGattCharacteristicList = new ArrayList<>();
     private final List<BluetoothGattDescriptor> characteristicsToGetNotificationsOnList = new ArrayList<>();
+    private final List<BluetoothGattCharacteristic> parameterCharacteristicList = new ArrayList<>();
     private boolean readingHomefragmentCharacteristics = false;
     private boolean isMinimized = false;
+    private SharedPreferences sharedPreferences;
     private BluetoothDevice device;
 
     public class LocalBinder extends Binder {
@@ -59,6 +61,8 @@ public class BluetoothLeService extends Service {
     }
 
     public boolean initialize() {
+
+
         if (bluetoothManager == null) {
             bluetoothManager = (BluetoothManager) getSystemService(Context.BLUETOOTH_SERVICE);
             if (bluetoothManager == null) {
@@ -72,8 +76,7 @@ public class BluetoothLeService extends Service {
             Log.e("BLE", "Unable to obtain a BluetoothAdapter.");
             return false;
         }
-        SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(this);
-        logQuick(sharedPreferences.getString("update_interval", "1"));
+        sharedPreferences = PreferenceManager.getDefaultSharedPreferences(this);
         return true;
     }
 
@@ -232,10 +235,13 @@ public class BluetoothLeService extends Service {
                             if (mCharacteristic.getUuid().toString().startsWith("3001", 4) || mCharacteristic.getUuid().toString().startsWith("3002", 4)
                                     || mCharacteristic.getUuid().toString().startsWith("3003", 4) || mCharacteristic.getUuid().toString().startsWith("3005", 4)
                                     || mCharacteristic.getUuid().toString().startsWith("3006", 4) || mCharacteristic.getUuid().toString().startsWith("4008", 4)) {
-                                // if(homefragmentBluetoothGattCharacteristicList.size() <= 6) {
                                 homefragmentBluetoothGattCharacteristicList.add(mCharacteristic);
-
-                                //}
+                            }
+                            if(mCharacteristic.getUuid().toString().startsWith("4001", 4) || mCharacteristic.getUuid().toString().startsWith("4002", 4)
+                                    || mCharacteristic.getUuid().toString().startsWith("4003", 4) || mCharacteristic.getUuid().toString().startsWith("4004", 4)
+                                    || mCharacteristic.getUuid().toString().startsWith("4005", 4) || mCharacteristic.getUuid().toString().startsWith("4006", 4)
+                                    || mCharacteristic.getUuid().toString().startsWith("4008", 4)) {
+                                parameterCharacteristicList.add(mCharacteristic);
                             }
                         }
                     }
@@ -257,13 +263,11 @@ public class BluetoothLeService extends Service {
                     writeDescriptors();
                 } else {
                     logQuick("all descriptors written");
-                }
-            } else {
-                Intent intent = new Intent("READY_TO_READ_CHARS");
-                intent.putExtra("READY_TO_READ_CHARS", true);
-                sendBroadcast(intent);
-            }
 
+                }
+            } else {//always do this
+                writeAllParametersToBMS();
+            }
         }
 
         @Override
@@ -280,6 +284,22 @@ public class BluetoothLeService extends Service {
                 Intent intent = new Intent(uuid);
                 intent.putExtra(uuid, data);
                 sendBroadcast(intent);
+            }
+        }
+        @Override
+        public void onCharacteristicWrite(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, int status) {
+            logQuick("written to: " + characteristic.getUuid().toString().substring(4, 8));
+            logQuick("size: " + parameterCharacteristicList.size());
+            if(!parameterCharacteristicList.isEmpty()) {
+                parameterCharacteristicList.remove(parameterCharacteristicList.get(parameterCharacteristicList.size() - 1));
+                if(!parameterCharacteristicList.isEmpty()) {
+                    writeAllParametersToBMS();
+                } else {//all parameters were written to the bms, now read the initial battery information
+                    logQuick("auto update state: " + sharedPreferences.getBoolean("auto_update", false));
+                    Intent intent = new Intent("READY_TO_READ_CHARS");
+                    intent.putExtra("READY_TO_READ_CHARS", true);
+                    sendBroadcast(intent);
+                }
             }
         }
 
@@ -328,6 +348,56 @@ public class BluetoothLeService extends Service {
         bluetoothGatt.readCharacteristic(tempBluetoothGattCharacteristicList.get(tempBluetoothGattCharacteristicList.size() - 1));
     }
 
+    public void writeAllParametersToBMS() {
+
+        if(!parameterCharacteristicList.isEmpty()) {
+            boolean checked;
+            byte[] data = new byte[0];
+            logQuick("size of params: " + parameterCharacteristicList.size());
+            switch (parameterCharacteristicList.get((parameterCharacteristicList.size() - 1)).getUuid().toString().substring(4,8)) {
+                case "4008":
+                    checked = sharedPreferences.getBoolean("only_balance_while_charging", false);
+                    data = new byte[1];
+                    data[0] = (byte) (checked ? 1 : 0);
+                    logQuick("char is 4008");
+                    break;
+                case "4001":
+                    data = new byte[1];
+                    data[0] = Byte.parseByte(sharedPreferences.getString("shunt_value", "5"));
+                    break;
+                case "4002":
+                    data = new byte[2];
+                    data[0] = (byte) (Integer.parseInt(sharedPreferences.getString("overcharge_current", "10000") ) & 0xFF);
+                    data[1] = (byte) ((Integer.parseInt(sharedPreferences.getString("overcharge_current", "10000")) >> 8) & 0xFF);
+                    break;
+                case "4003":
+                    data = new byte[2];
+                    data[0] = (byte) (Integer.parseInt(sharedPreferences.getString("undervolt", "3000")) & 0xFF);
+                    data[1] = (byte) ((Integer.parseInt(sharedPreferences.getString("undervolt", "3000")) >> 8) & 0xFF);
+                    break;
+                case "4004":
+                    data = new byte[2];
+                    data[0] = (byte) (Integer.parseInt(sharedPreferences.getString("overvolt", "4200")) & 0xFF);
+                    data[1] = (byte) ((Integer.parseInt(sharedPreferences.getString("overvolt", "4200")) >> 8) & 0xFF);
+                    break;
+                case "4005":
+                    data = new byte[4];
+                    //data[0] = Byte.parseByte(sharedPreferences.getString("min_balance_voltage", "5"));
+                    //datargernge
+
+                    data[0] = (byte) ((Integer.parseInt(sharedPreferences.getString("min_balance_voltage", "3900")) & 0xFF));
+                    data[1] = (byte) ((Integer.parseInt(sharedPreferences.getString("min_balance_voltage", "3900")) >> 8) & 0xFF);
+                    data[2] = (byte) (Integer.parseInt(sharedPreferences.getString("max_cell_voltage_diff", "15")) & 0xFF);
+                    data[3] = (byte) ((Integer.parseInt(sharedPreferences.getString("max_cell_voltage_diff", "15")) >> 8) & 0xFF);
+                    break;
+                case "4006":
+                    data = new byte[1];
+                    data[0] = Byte.parseByte(sharedPreferences.getString("idle_current_threshold", "100"));
+                    break;
+            }
+            writeCharacteristic((parameterCharacteristicList.get((parameterCharacteristicList.size() - 1)).getUuid().toString().substring(4,8)), data);
+        }
+    }
     public void requestHomefragmentCharacteristics() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             if (ActivityCompat.checkSelfPermission(this, android.Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {

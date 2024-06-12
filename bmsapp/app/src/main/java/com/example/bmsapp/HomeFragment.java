@@ -245,6 +245,8 @@ public class HomeFragment extends Fragment{
                 case "READY_TO_READ_CHARS":
                     if(intent.getBooleanExtra("READY_TO_READ_CHARS", false)) {
                         bluetoothLeService.readCharacteristicsForHomefragment();
+                       // boolean szt = sharedPreferences.getBoolean("auto_update", false);
+                       // blue
                     }
                     break;
             }
