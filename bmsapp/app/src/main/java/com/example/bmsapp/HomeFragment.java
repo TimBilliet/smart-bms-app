@@ -7,6 +7,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.ServiceConnection;
+import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
@@ -23,6 +24,7 @@ import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.core.content.ContextCompat;
 import androidx.fragment.app.Fragment;
+import androidx.preference.PreferenceManager;
 
 import java.math.RoundingMode;
 import java.text.DecimalFormat;
@@ -43,6 +45,7 @@ public class HomeFragment extends Fragment{
     private TextView textViewVoltageRange;
     private TextView textViewVoltageDifference;
     private double chargeCurrentA;
+    private SharedPreferences sharedPreferences;
     private final Handler handlerToast = new Handler(Looper.getMainLooper());
     private BluetoothLeService bluetoothLeService;
     private  boolean onlyBalanceWhileCharging = true;
@@ -86,37 +89,62 @@ public class HomeFragment extends Fragment{
         textViewVoltageDifference = view.findViewById(R.id.textViewDifference);
         enableBalancingSwitch = view.findViewById(R.id.switchBalancing);
         enableChargingSwitch = view.findViewById(R.id.switchCharging);
+        sharedPreferences = PreferenceManager.getDefaultSharedPreferences(requireContext());
+        enableBalancingSwitch.setChecked(sharedPreferences.getBoolean("balancing_switch", false));
+        enableChargingSwitch.setChecked(sharedPreferences.getBoolean("charging_switch", false));
         enableBalancingSwitch.setOnClickListener(v -> {
+            SharedPreferences.Editor editor = sharedPreferences.edit();
             if(bluetoothLeService != null && bluetoothLeService.getConnectionState() == BluetoothAdapter.STATE_CONNECTED) {
                 byte[] data = {0};
+
+
                 if(enableBalancingSwitch.isChecked()) {
                     if(onlyBalanceWhileCharging) {
                         if(chargeCurrentA > 0.02) {
                             data[0] = 1;
+                            editor.putBoolean("balancing_switch", true);
+                            editor.apply();
                         } else {
+                            editor.putBoolean("balancing_switch", false);
+                            editor.apply();
                             handlerToast.post(() -> Toast.makeText(requireContext(), "Balancing only allowed while charging", Toast.LENGTH_SHORT).show());
                             enableBalancingSwitch.setChecked(false);
                         }
                     } else {
                         data[0] = 1;
+                        editor.putBoolean("balancing_switch", true);
+                        editor.apply();
                     }
+                } else {
+                    editor.putBoolean("balancing_switch", false);
+                    editor.apply();
                 }
                 bluetoothLeService.writeCharacteristic("3005", data);
             } else {
                 handlerToast.post(() -> Toast.makeText(requireContext(), "Not connected", Toast.LENGTH_SHORT).show());
                 enableBalancingSwitch.setChecked(false);
+                editor.putBoolean("balancing_switch", false);
+                editor.apply();
             }
         });
         enableChargingSwitch.setOnClickListener(v -> {
+            SharedPreferences.Editor editor = sharedPreferences.edit();
             if(bluetoothLeService != null && bluetoothLeService.getConnectionState() == BluetoothAdapter.STATE_CONNECTED) {
                 byte[] data = {0};
                 if(enableChargingSwitch.isChecked()) {
                     data[0] = 1;
+                    editor.putBoolean("charging_switch", true);
+                    editor.apply();
+                } else {
+                    editor.putBoolean("charging_switch", false);
+                    editor.apply();
                 }
                 bluetoothLeService.writeCharacteristic("3006", data);
             } else {
                 handlerToast.post(() -> Toast.makeText(requireContext(), "Not connected", Toast.LENGTH_SHORT).show());
                 enableChargingSwitch.setChecked(false);
+                editor.putBoolean("charging_switch", false);
+                editor.apply();
             }
         });
 
@@ -191,19 +219,23 @@ public class HomeFragment extends Fragment{
                     }
                     break;
                 case "3005":
-                    //TODO change this to use preferences
                     data = intent.getByteArrayExtra("3005");
                     if(data != null) {
                         checked = data[0] != 0;
                         enableBalancingSwitch.setChecked(checked);
+                        SharedPreferences.Editor editor = sharedPreferences.edit();
+                        editor.putBoolean("balancing_switch", checked);
+                        editor.apply();
                     }
                     break;
                 case "3006":
-                    //TODO change this to use preferences
                     data = intent.getByteArrayExtra("3006");
                     if(data != null) {
                         checked = data[0] != 0;
                         enableChargingSwitch.setChecked(checked);
+                        SharedPreferences.Editor editor = sharedPreferences.edit();
+                        editor.putBoolean("charging_switch", checked);
+                        editor.apply();
                     }
                     break;
                  case "4008": // only balance while charging
@@ -239,6 +271,8 @@ public class HomeFragment extends Fragment{
     }
     @Override
     public void onResume() {
+        enableChargingSwitch.setChecked(sharedPreferences.getBoolean("charging_switch", false));
+        enableBalancingSwitch.setChecked(sharedPreferences.getBoolean("balancing_switch", false));
         ContextCompat.registerReceiver(requireActivity(),bleUpdateReceiver, new IntentFilter("3001"), ContextCompat.RECEIVER_NOT_EXPORTED);
         ContextCompat.registerReceiver(requireActivity(),bleUpdateReceiver, new IntentFilter("3002"), ContextCompat.RECEIVER_NOT_EXPORTED);
         ContextCompat.registerReceiver(requireActivity(),bleUpdateReceiver, new IntentFilter("3003"), ContextCompat.RECEIVER_NOT_EXPORTED);

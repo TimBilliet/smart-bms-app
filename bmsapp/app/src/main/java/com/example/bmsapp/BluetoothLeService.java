@@ -221,6 +221,7 @@ public class BluetoothLeService extends Service {
         @Override
         public void onServicesDiscovered(BluetoothGatt gatt, int status) {
             if (status == BluetoothGatt.GATT_SUCCESS) {
+
                 for (BluetoothGattService gattService : gatt.getServices()) {
                     if ((gattService.getUuid().toString()).startsWith("3000", 4) || (gattService.getUuid().toString()).startsWith("4000", 4)) {
                         for (BluetoothGattCharacteristic mCharacteristic : gattService.getCharacteristics()) {
@@ -239,6 +240,7 @@ public class BluetoothLeService extends Service {
                 logQuick("homefraglist size: " + tempHomefragmentBluetoothGattCharacteristicList.size());
                 tempBluetoothGattCharacteristicList.addAll(bluetoothGattCharacteristicList);
                 toggleFaultNotifications();
+
             }
         }
 
@@ -251,7 +253,12 @@ public class BluetoothLeService extends Service {
                 } else {
                     logQuick("all descriptors written");
                 }
+            } else {
+                Intent intent = new Intent("READY_TO_READ_CHARS");
+                intent.putExtra("READY_TO_READ_CHARS", true);
+                sendBroadcast(intent);
             }
+
         }
 
         @Override

@@ -158,6 +158,7 @@ public class MainActivity extends AppCompatActivity {
             }
             bluetoothLeService.connect(convertToUpperCase(storedMac));
             bluetoothLeService.setIsMinimized(false);
+            logQuick("connecting");
         }
 
         @Override
@@ -259,7 +260,6 @@ public class MainActivity extends AppCompatActivity {
                             .setIcon(android.R.drawable.ic_dialog_alert)
                             .show();
                 }
-                logQuick("show notif");
                 if (sharedPreferences.getBoolean("receive_notifications", false) && faultCode[0] != 0
                         && ContextCompat.checkSelfPermission(getApplicationContext(), Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED) {
                     logQuick("show notification");
@@ -272,6 +272,8 @@ public class MainActivity extends AppCompatActivity {
                     NotificationManager notificationManager = (NotificationManager) MainActivity.this.getSystemService(Context.NOTIFICATION_SERVICE);
                     notificationManager.notify(0, builder.build());
                 }
+            } else if(Objects.equals(intent.getAction(), "READY_TO_READ_CHARS") && intent.getBooleanExtra("READY_TO_READ_CHARS", true)) {
+                bluetoothLeService.readCharacteristicsForHomefragment();
             }
         }
     };
@@ -283,6 +285,7 @@ public class MainActivity extends AppCompatActivity {
         }
         super.onResume();
         ContextCompat.registerReceiver(this,bleUpdateReceiver, new IntentFilter("3007"), ContextCompat.RECEIVER_NOT_EXPORTED);
+        ContextCompat.registerReceiver(this,bleUpdateReceiver, new IntentFilter("READY_TO_READ_CHARS"), ContextCompat.RECEIVER_NOT_EXPORTED);
     }
 
     @Override
