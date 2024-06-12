@@ -3,6 +3,7 @@ package com.example.bmsapp;
 
 import android.Manifest;
 import android.app.AlertDialog;
+import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothGattDescriptor;
 import android.bluetooth.BluetoothProfile;
 import android.content.BroadcastReceiver;
@@ -74,6 +75,8 @@ public class SettingsFragment extends PreferenceFragmentCompat {
             macAddressPreference.setOnPreferenceChangeListener((preference, macAddress) -> {
                 if (!isValidMacAddress((String) macAddress)) {
                     showDialog("Invalid MAC address");
+                } else if(bluetoothLeService != null && bluetoothLeService.getConnectionState() == BluetoothAdapter.STATE_CONNECTED){// only bind service if there is no active connection
+                    showDialog("Already connected");
                 } else {
                     this.macAddress = convertToUpperCase((String) macAddress);
                     Intent gattServiceIntent = new Intent(getActivity(), BluetoothLeService.class);
@@ -269,7 +272,11 @@ public class SettingsFragment extends PreferenceFragmentCompat {
             switch (action) {
                 case "CONNECTION_STATE_CHANGED":
                     if (intent.getBooleanExtra("CONNECTION_STATE_CHANGED", false)) {
+                        logQuick("connection state changed to true");
                         showDialog("Connected to: " + macAddress);
+                        Log.e(TAG, "CONNECTION STATE CHANGED TO TRUE IN SETTINGSFRAG");
+                    } else {
+                       // requireActivity().unregisterReceiver(bleUpdateReceiver);
                     }
                     break;
                 case "4001":
@@ -347,6 +354,7 @@ public class SettingsFragment extends PreferenceFragmentCompat {
                 requireActivity().finish();
             }
             bluetoothLeService.connect(macAddress);
+            logQuick("connecting in settingsfrag");
         }
 
         @Override
@@ -354,6 +362,11 @@ public class SettingsFragment extends PreferenceFragmentCompat {
             bluetoothLeService = null;
         }
     };
+    @Override
+    public void onPause() {
+        requireActivity().unregisterReceiver(bleUpdateReceiver);
+        super.onPause();
+    }
 
     @Override
     public void onResume() {

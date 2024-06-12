@@ -122,7 +122,7 @@ public class BluetoothLeService extends Service {
         UUID cccdUuid = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb");
         BluetoothGattCharacteristic faultCharacteristic = getCharacteristicByUUID("3007");
         bluetoothGatt.setCharacteristicNotification(faultCharacteristic, true);
-        if(faultCharacteristic != null) {
+        if (faultCharacteristic != null) {
             BluetoothGattDescriptor faultDescriptor = faultCharacteristic.getDescriptor(cccdUuid);
             faultDescriptor.setValue(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE);
             bluetoothGatt.writeDescriptor(faultDescriptor);
@@ -145,7 +145,7 @@ public class BluetoothLeService extends Service {
         bluetoothGatt.setCharacteristicNotification(cellBalancingStateCharacteristic, true);
         bluetoothGatt.setCharacteristicNotification(balancingCharacteristic, true);
         bluetoothGatt.setCharacteristicNotification(chargingCharacteristic, true);
-        if(voltageCurrentCharacteristic != null && cellVoltageCharacteristic != null && cellBalancingStateCharacteristic != null && balancingCharacteristic != null && chargingCharacteristic != null) {
+        if (voltageCurrentCharacteristic != null && cellVoltageCharacteristic != null && cellBalancingStateCharacteristic != null && balancingCharacteristic != null && chargingCharacteristic != null) {
             BluetoothGattDescriptor voltageCurrentDescriptor = voltageCurrentCharacteristic.getDescriptor(cccdUuid);
             BluetoothGattDescriptor cellVoltageDescriptor = cellVoltageCharacteristic.getDescriptor(cccdUuid);
             BluetoothGattDescriptor cellBalancingStateDescriptor = cellBalancingStateCharacteristic.getDescriptor(cccdUuid);
@@ -166,7 +166,6 @@ public class BluetoothLeService extends Service {
             writeDescriptors();
         }
     }
-
 
     public void writeDescriptors() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
@@ -205,6 +204,7 @@ public class BluetoothLeService extends Service {
                 handlerToast.post(() -> Toast.makeText(getApplicationContext(), "Connected", Toast.LENGTH_LONG).show());
                 Intent intent = new Intent("CONNECTION_STATE_CHANGED");
                 intent.putExtra("CONNECTION_STATE_CHANGED", true);
+                logQuick("sending broadcast from bleservice");
                 sendBroadcast(intent);
                 bluetoothGatt.discoverServices();
 
@@ -214,6 +214,8 @@ public class BluetoothLeService extends Service {
                 Intent intent = new Intent("CONNECTION_STATE_CHANGED");
                 intent.putExtra("CONNECTION_STATE_CHANGED", false);
                 sendBroadcast(intent);
+                homefragmentBluetoothGattCharacteristicList.clear();
+                tempHomefragmentBluetoothGattCharacteristicList.clear();
             }
         }
 
@@ -229,8 +231,11 @@ public class BluetoothLeService extends Service {
                             bluetoothGattCharacteristicList.add(mCharacteristic);
                             if (mCharacteristic.getUuid().toString().startsWith("3001", 4) || mCharacteristic.getUuid().toString().startsWith("3002", 4)
                                     || mCharacteristic.getUuid().toString().startsWith("3003", 4) || mCharacteristic.getUuid().toString().startsWith("3005", 4)
-                                    || mCharacteristic.getUuid().toString().startsWith("3006", 4) ||mCharacteristic.getUuid().toString().startsWith("4008", 4)) {
+                                    || mCharacteristic.getUuid().toString().startsWith("3006", 4) || mCharacteristic.getUuid().toString().startsWith("4008", 4)) {
+                                // if(homefragmentBluetoothGattCharacteristicList.size() <= 6) {
                                 homefragmentBluetoothGattCharacteristicList.add(mCharacteristic);
+
+                                //}
                             }
                         }
                     }

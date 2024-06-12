@@ -30,6 +30,8 @@ import android.util.Log;
 import androidx.core.app.ActivityCompat;
 import androidx.core.app.NotificationCompat;
 import androidx.core.content.ContextCompat;
+import androidx.fragment.app.Fragment;
+import androidx.fragment.app.FragmentManager;
 import androidx.navigation.NavController;
 import androidx.navigation.Navigation;
 import androidx.navigation.ui.AppBarConfiguration;
@@ -42,6 +44,7 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.widget.Toast;
 
+import java.util.List;
 import java.util.Objects;
 import java.util.regex.Pattern;
 
@@ -103,7 +106,7 @@ public class MainActivity extends AppCompatActivity {
         this.bindService(gattServiceIntent, serviceConnection, Context.BIND_AUTO_CREATE);
         sharedPreferences = PreferenceManager.getDefaultSharedPreferences(this);
         storedMac = sharedPreferences.getString("mac_address", "AA:AA:AA:AA:AA:AA");
-        logQuick(storedMac);
+        logQuick("stored: mac "+ storedMac);
 
         int importance = NotificationManager.IMPORTANCE_DEFAULT;
         NotificationChannel channel = new NotificationChannel(CHANNEL_ID, "channel1", importance);
@@ -272,8 +275,6 @@ public class MainActivity extends AppCompatActivity {
                     NotificationManager notificationManager = (NotificationManager) MainActivity.this.getSystemService(Context.NOTIFICATION_SERVICE);
                     notificationManager.notify(0, builder.build());
                 }
-            } else if(Objects.equals(intent.getAction(), "READY_TO_READ_CHARS") && intent.getBooleanExtra("READY_TO_READ_CHARS", true)) {
-                bluetoothLeService.readCharacteristicsForHomefragment();
             }
         }
     };
@@ -283,17 +284,22 @@ public class MainActivity extends AppCompatActivity {
         if (bluetoothLeService != null) {
             bluetoothLeService.setIsMinimized(false);
         }
-        super.onResume();
         ContextCompat.registerReceiver(this,bleUpdateReceiver, new IntentFilter("3007"), ContextCompat.RECEIVER_NOT_EXPORTED);
-        ContextCompat.registerReceiver(this,bleUpdateReceiver, new IntentFilter("READY_TO_READ_CHARS"), ContextCompat.RECEIVER_NOT_EXPORTED);
+        super.onResume();
     }
 
     @Override
     public void onPause() {
-        super.onPause();
         if (bluetoothLeService != null) {
             bluetoothLeService.setIsMinimized(true);
         }
+        unregisterReceiver(bleUpdateReceiver);
+        super.onPause();
+    }
+    @Override
+    public void onDestroy() {
+        logQuick("destroying");
+        super.onDestroy();
     }
 
     @Override

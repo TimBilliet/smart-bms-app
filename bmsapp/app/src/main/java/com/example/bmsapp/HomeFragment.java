@@ -97,7 +97,6 @@ public class HomeFragment extends Fragment{
             if(bluetoothLeService != null && bluetoothLeService.getConnectionState() == BluetoothAdapter.STATE_CONNECTED) {
                 byte[] data = {0};
 
-
                 if(enableBalancingSwitch.isChecked()) {
                     if(onlyBalanceWhileCharging) {
                         if(chargeCurrentA > 0.02) {
@@ -147,7 +146,6 @@ public class HomeFragment extends Fragment{
                 editor.apply();
             }
         });
-
         Intent gattServiceIntent = new Intent(getActivity(), BluetoothLeService.class);
         requireActivity().bindService(gattServiceIntent, serviceConnection, Context.BIND_AUTO_CREATE);
 
@@ -244,6 +242,11 @@ public class HomeFragment extends Fragment{
                         onlyBalanceWhileCharging = data[0] != 0;
                     }
                     break;
+                case "READY_TO_READ_CHARS":
+                    if(intent.getBooleanExtra("READY_TO_READ_CHARS", false)) {
+                        bluetoothLeService.readCharacteristicsForHomefragment();
+                    }
+                    break;
             }
         }
     };
@@ -279,11 +282,18 @@ public class HomeFragment extends Fragment{
         ContextCompat.registerReceiver(requireActivity(),bleUpdateReceiver, new IntentFilter("3005"), ContextCompat.RECEIVER_NOT_EXPORTED);
         ContextCompat.registerReceiver(requireActivity(),bleUpdateReceiver, new IntentFilter("3006"), ContextCompat.RECEIVER_NOT_EXPORTED);
         ContextCompat.registerReceiver(requireActivity(),bleUpdateReceiver, new IntentFilter("4008"), ContextCompat.RECEIVER_NOT_EXPORTED);
+        ContextCompat.registerReceiver(requireActivity(),bleUpdateReceiver, new IntentFilter("READY_TO_READ_CHARS"), ContextCompat.RECEIVER_NOT_EXPORTED);
         if(bluetoothLeService != null) {
-            bluetoothLeService.readCharacteristicsForHomefragment();
+           bluetoothLeService.readCharacteristicsForHomefragment();
         }
         super.onResume();
     }
+    @Override
+    public void onPause() {
+        requireActivity().unregisterReceiver(bleUpdateReceiver);
+        super.onPause();
+    }
+
     @Override
     public void onAttach(@NonNull Context context) {
         MainActivity activity = (MainActivity) requireActivity();
