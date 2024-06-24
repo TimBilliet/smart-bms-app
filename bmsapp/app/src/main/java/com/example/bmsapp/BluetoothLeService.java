@@ -1,6 +1,7 @@
 package com.example.bmsapp;
 
 import android.Manifest;
+import android.annotation.SuppressLint;
 import android.app.Service;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
@@ -30,7 +31,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
-
+@SuppressLint("MissingPermission")
 public class BluetoothLeService extends Service {
     private BluetoothManager bluetoothManager;
     private BluetoothAdapter bluetoothAdapter;
@@ -103,7 +104,6 @@ public class BluetoothLeService extends Service {
     }
 
     public int getConnectionState() {
-
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             if (ActivityCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED) {
                 return bluetoothManager.getConnectionState(device, BluetoothGatt.GATT);
@@ -115,13 +115,6 @@ public class BluetoothLeService extends Service {
     }
 
     private void toggleFaultNotifications() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            if (ActivityCompat.checkSelfPermission(this, android.Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
-                return;
-            }
-        } else if (ActivityCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH) != PackageManager.PERMISSION_GRANTED) {
-            return;
-        }
         UUID cccdUuid = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb");
         BluetoothGattCharacteristic faultCharacteristic = getCharacteristicByUUID("3007");
         bluetoothGatt.setCharacteristicNotification(faultCharacteristic, true);
@@ -133,9 +126,6 @@ public class BluetoothLeService extends Service {
     }
 
     public void toggleNotifications(byte[] value) {
-        if (ActivityCompat.checkSelfPermission(getApplicationContext(), Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
-            return;
-        }
         UUID cccdUuid = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb");
 
         BluetoothGattCharacteristic voltageCurrentCharacteristic = getCharacteristicByUUID("3001");
@@ -171,13 +161,6 @@ public class BluetoothLeService extends Service {
     }
 
     public void writeDescriptors() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            if (ActivityCompat.checkSelfPermission(this, android.Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
-                return;
-            }
-        } else if (ActivityCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH) != PackageManager.PERMISSION_GRANTED) {
-            return;
-        }
         if (!characteristicsToGetNotificationsOnList.isEmpty()) {
             bluetoothGatt.writeDescriptor(characteristicsToGetNotificationsOnList.get(characteristicsToGetNotificationsOnList.size() - 1));
         }
@@ -196,14 +179,6 @@ public class BluetoothLeService extends Service {
         public void onConnectionStateChange(BluetoothGatt gatt, int status, int newState) {
             if (newState == BluetoothProfile.STATE_CONNECTED) {
                 Log.i(TAG, "Connected to GATT server.");
-
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                    if (ActivityCompat.checkSelfPermission(getApplicationContext(), android.Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
-                        return;
-                    }
-                } else if (ActivityCompat.checkSelfPermission(getApplicationContext(), Manifest.permission.BLUETOOTH) != PackageManager.PERMISSION_GRANTED) {
-                    return;
-                }
                 handlerToast.post(() -> Toast.makeText(getApplicationContext(), "Connected", Toast.LENGTH_LONG).show());
                 Intent intent = new Intent("CONNECTION_STATE_CHANGED");
                 intent.putExtra("CONNECTION_STATE_CHANGED", true);
@@ -337,13 +312,6 @@ public class BluetoothLeService extends Service {
     };
 
     public void requestCharacteristics() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            if (ActivityCompat.checkSelfPermission(this, android.Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
-                return;
-            }
-        } else if (ActivityCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH) != PackageManager.PERMISSION_GRANTED) {
-            return;
-        }
         logQuick("request chars");
         bluetoothGatt.readCharacteristic(tempBluetoothGattCharacteristicList.get(tempBluetoothGattCharacteristicList.size() - 1));
     }
@@ -399,13 +367,6 @@ public class BluetoothLeService extends Service {
         }
     }
     public void requestHomefragmentCharacteristics() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            if (ActivityCompat.checkSelfPermission(this, android.Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
-                return;
-            }
-        } else if (ActivityCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH) != PackageManager.PERMISSION_GRANTED) {
-            return;
-        }
         readingHomefragmentCharacteristics = true;
         logQuick("request homefrag chars");
         if (!tempHomefragmentBluetoothGattCharacteristicList.isEmpty()) {
@@ -415,13 +376,6 @@ public class BluetoothLeService extends Service {
 
     public void readCharacteristic(String uuid) {
         BluetoothGattCharacteristic characteristic = getCharacteristicByUUID(uuid);
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            if (ActivityCompat.checkSelfPermission(this, android.Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
-                return;
-            }
-        } else if (ActivityCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH) != PackageManager.PERMISSION_GRANTED) {
-            return;
-        }
         bluetoothGatt.readCharacteristic(characteristic);
     }
 
@@ -440,13 +394,6 @@ public class BluetoothLeService extends Service {
             logQuick("BluetoothAdapter not initialized");
             return;
         }
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            if (ActivityCompat.checkSelfPermission(this, android.Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
-                return;
-            }
-        } else if (ActivityCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH) != PackageManager.PERMISSION_GRANTED) {
-            return;
-        }
         requestCharacteristics();
     }
 
@@ -455,25 +402,11 @@ public class BluetoothLeService extends Service {
             logQuick("BluetoothAdapter not initialized");
             return;
         }
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            if (ActivityCompat.checkSelfPermission(this, android.Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
-                return;
-            }
-        } else if (ActivityCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH) != PackageManager.PERMISSION_GRANTED) {
-            return;
-        }
         readingHomefragmentCharacteristics = true;
         requestHomefragmentCharacteristics();
     }
 
     public void writeCharacteristic(String uuid, byte[] value) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            if (ActivityCompat.checkSelfPermission(this, android.Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
-                return;
-            }
-        } else if (ActivityCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH) != PackageManager.PERMISSION_GRANTED) {
-            return;
-        }
         logQuick("uuid: " + uuid);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             if (getConnectionState() == BluetoothProfile.STATE_CONNECTED) {
