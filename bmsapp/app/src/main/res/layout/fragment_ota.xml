@@ -11,14 +11,62 @@
         android:layout_height="match_parent"
         android:padding="16dp">
 
+        <Button
+            android:id="@+id/buttonChooseFile"
+            android:layout_width="145dp"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="40dp"
+            android:layout_marginEnd="5dp"
+            android:backgroundTint="#1E90EA"
+            android:drawableRight="@drawable/baseline_attach_file_24"
+            android:text="Pick file (.bin)"
+            android:textColor="@color/white"
+            android:paddingHorizontal="12dp"
+            android:textAlignment="textStart"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toBottomOf="@+id/textViewMac" />
+
         <TextView
-            android:id="@+id/textViewAuthor"
+            android:id="@+id/textViewMac"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="OTA frag"
+            android:layout_marginStart="5dp"
+            android:text="Connected to: NOT CONNECTED"
+            app:layout_constraintStart_toStartOf="parent"
+            tools:layout_editor_absoluteY="30dp" />
+
+        <Button
+            android:id="@+id/buttonUpload"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="80dp"
+            android:backgroundTint="#1E90EA"
+            android:drawableRight="@drawable/baseline_file_upload_24"
+            android:text="Upgrade firmware"
+            android:textColor="@color/white"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent" />
+            app:layout_constraintTop_toBottomOf="@+id/buttonChooseFile" />
+
+        <TextView
+            android:id="@+id/textViewFileName"
+            android:layout_width="170dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="5dp"
+            android:text="File name:"
+            app:layout_constraintBottom_toBottomOf="@+id/buttonChooseFile"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="@+id/buttonChooseFile" />
+
+        <TextView
+            android:id="@+id/textViewFileSize"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="5dp"
+            android:layout_marginTop="20dp"
+            android:text="Size: "
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@+id/textViewFileName" />
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 </androidx.core.widget.NestedScrollView>
