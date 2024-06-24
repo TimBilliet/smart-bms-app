@@ -4,7 +4,6 @@
     tools:context="com.example.bmsapp.MainActivity"
     android:id="@+id/main_menu">
 
-
     <item
         android:id="@+id/power_off"
         android:icon="@drawable/baseline_power_settings_new_24"
@@ -19,6 +18,11 @@
         android:id="@+id/action_settings"
         android:orderInCategory="100"
         android:title="@string/action_settings"
+        app:showAsAction="never" />
+    <item
+        android:id="@+id/action_ota"
+        android:orderInCategory="100"
+        android:title="@string/ota_update"
         app:showAsAction="never" />
     <item
         android:id="@+id/action_about"

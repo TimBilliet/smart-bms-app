@@ -17,6 +17,9 @@
         <action
             android:id="@+id/action_HomeFragment_to_SettingsFragment"
             app:destination="@id/SettingsFragment" />
+        <action
+            android:id="@+id/action_HomeFragment_to_otaFragment"
+            app:destination="@id/OtaFragment" />
     </fragment>
     <fragment
         android:id="@+id/AboutFragment"
@@ -36,6 +39,15 @@
 
         <action
             android:id="@+id/action_SettingsFragment_to_HomeFragment"
+            app:destination="@id/HomeFragment" />
+    </fragment>
+    <fragment
+        android:id="@+id/OtaFragment"
+        android:name="com.example.bmsapp.OtaFragment"
+        android:label="OTA update"
+        tools:layout="@layout/fragment_ota" >
+        <action
+            android:id="@+id/action_OtaFragment_to_HomeFragment"
             app:destination="@id/HomeFragment" />
     </fragment>
 </navigation>

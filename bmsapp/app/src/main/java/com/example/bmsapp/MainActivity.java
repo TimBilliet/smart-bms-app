@@ -125,7 +125,11 @@ public class MainActivity extends AppCompatActivity {
                         hideOverflowMenu = false;
                         supportInvalidateOptionsMenu();
                         navController.navigate(R.id.action_AboutFragment_to_HomeFragment);
-                    } else {
+                    } else if (navController.getCurrentDestination().getLabel().toString().equals("OTA update")) {
+                        hideOverflowMenu = false;
+                        supportInvalidateOptionsMenu();
+                        navController.navigate(R.id.action_OtaFragment_to_HomeFragment);
+                    }else {
                         moveTaskToBack(true);
                     }
                 }
@@ -315,7 +319,12 @@ public class MainActivity extends AppCompatActivity {
             hideOverflowMenu = true;
             supportInvalidateOptionsMenu();
             return true;
-        } else if (id == android.R.id.home) {
+        } else if (id == R.id.action_ota) {
+            navController.navigate(R.id.OtaFragment);
+            hideOverflowMenu = true;
+            supportInvalidateOptionsMenu();
+            return true;
+        }else if (id == android.R.id.home) {
             hideOverflowMenu = false;
             supportInvalidateOptionsMenu();
             navController.navigate(R.id.HomeFragment);
