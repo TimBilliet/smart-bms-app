@@ -29,9 +29,12 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.core.content.ContextCompat;
 import androidx.fragment.app.Fragment;
+import androidx.recyclerview.widget.LinearLayoutManager;
 
 import com.example.bmsapp.databinding.FragmentOtaBinding;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 
 public class OtaFragment extends Fragment {
@@ -43,6 +46,10 @@ public class OtaFragment extends Fragment {
     private static final int PICK_FILE_REQUEST_CODE = 1;
     private Uri selectedFile;
     private int sectorsSize;
+    StatusRecyclerViewAdapter recyclerViewAdapter;
+    private List<String> statusList = new ArrayList<>();
+    private long otaStartTime;
+    private long otaEndTime;
 
     @Override public void onStart() {
         super.onStart();
@@ -82,6 +89,9 @@ public class OtaFragment extends Fragment {
         if(bluetoothLeService.getConnectionState() == BluetoothGatt.STATE_CONNECTED) {
             bluetoothLeService.requestHighPriorityConnection();
         }
+       // binding.recyclerViewOTA.setLayoutManager(new LinearLayoutManager(requireContext()));
+        recyclerViewAdapter = new StatusRecyclerViewAdapter(statusList);
+        binding.recyclerViewOTA.setAdapter(recyclerViewAdapter);
         return binding.getRoot();
     }
     public void onAttach(@NonNull Context context) {
@@ -159,20 +169,20 @@ public class OtaFragment extends Fragment {
         public void onReceive(Context context, Intent intent) {
             String action = intent.getAction();
             if (action == null || binding == null) {
-                handlerToast.post(() -> Toast.makeText(getContext(), "Action or binding is null.", Toast.LENGTH_LONG).show());
                 return;
             }
             switch(action) {
                 case "CONNECTION_STATE_CHANGED":
                     if (intent.getBooleanExtra("CONNECTION_STATE_CHANGED", false)) {
                         binding.textViewMac.setText("Connected to: " + bluetoothLeService.getConnectedDevice().getAddress());
+                        binding.progressBarOTA.setProgress(0);
+                        binding.textViewOTAProgress.setText("0%");
                     } else {
                         binding.textViewMac.setText("Connected to: NOT CONNECTED");
                         disableUpgradeButton();
                         binding.textViewFileName.setText("File name:");
                         binding.textViewFileSize.setText("Size:");
                     }
-
                     break;
                 case "SECTORS_SIZE":
                     logQuick("val " + intent.getIntExtra("SECTORS_SIZE", 0));
@@ -184,6 +194,18 @@ public class OtaFragment extends Fragment {
                     binding.progressBarOTA.setProgress(progress);
                     double percent = ( (double) progress / sectorsSize) * 100.0;
                     binding.textViewOTAProgress.setText(Math.round(percent) + "%");
+                    break;
+                case "OTA_STATUS":
+                    String statusMessage = intent.getStringExtra("OTA_STATUS");
+                    if(Objects.equals(statusMessage, "Starting OTA update...")) {
+                        otaStartTime = System.currentTimeMillis();
+                    } else if (Objects.equals(statusMessage, "OTA update complete!")) {
+                        otaEndTime = System.currentTimeMillis();
+                        long diff = otaEndTime - otaStartTime;
+                        statusMessage = "OTA update complete! (" + diff/1000 + "s elapsed)";
+                    }
+                    statusList.add(statusMessage);
+                    binding.recyclerViewOTA.scrollToPosition(statusList.size() - 1);
                     break;
             }
         }
@@ -211,6 +233,7 @@ public class OtaFragment extends Fragment {
         ContextCompat.registerReceiver(requireContext(), bleUpdateReceiver, new IntentFilter("CONNECTION_STATE_CHANGED"), ContextCompat.RECEIVER_NOT_EXPORTED);
         ContextCompat.registerReceiver(requireContext(), bleUpdateReceiver, new IntentFilter("SECTORS_SIZE"), ContextCompat.RECEIVER_NOT_EXPORTED);
         ContextCompat.registerReceiver(requireContext(), bleUpdateReceiver, new IntentFilter("OTA_PROGRESS"), ContextCompat.RECEIVER_NOT_EXPORTED);
+        ContextCompat.registerReceiver(requireContext(), bleUpdateReceiver, new IntentFilter("OTA_STATUS"), ContextCompat.RECEIVER_NOT_EXPORTED);
     }
     @Override
     public void onPause() {
@@ -219,7 +242,6 @@ public class OtaFragment extends Fragment {
     @Override
     public void onDestroyView() {
         super.onDestroyView();
-
         binding = null;
     }
 }

@@ -86,18 +86,16 @@ public class BluetoothLeService extends Service {
     private static final int MTU_STATUS_FAILED = 20000;
     private static final int EXPECT_PACKET_SIZE = 463;
 
-    private static final String SERVICE_UUID = "8018";
     private static final String CHAR_RECV_FW_UUID = "8020";
     private static final String CHAR_PROGRESS_UUID = "8021";
     private static final String CHAR_COMMAND_UUID = "8022";
     private static final String CHAR_CUSTOMER_UUID = "8023";
-    BluetoothGattService service = null;
-    BluetoothGattCharacteristic recvFwChar = null;
-    BluetoothGattCharacteristic progressChar = null;
-    BluetoothGattCharacteristic commandChar = null;
-    BluetoothGattCharacteristic customerChar = null;
+    private BluetoothGattCharacteristic recvFwChar = null;
+    private BluetoothGattCharacteristic progressChar = null;
+    private BluetoothGattCharacteristic commandChar = null;
+    private BluetoothGattCharacteristic customerChar = null;
     private static final boolean REQUIRE_CHECKSUM = false;
-    private Uri binFileUri;
+
 
 
     public class LocalBinder extends Binder {
@@ -189,7 +187,7 @@ public class BluetoothLeService extends Service {
                     bin = readBytes(inputStream);
                 }
             } catch (Exception ex) {
-                showDialog("Error while starting OTA: " + ex.getMessage());
+                showDialog("Error while starting OTA update: " + ex.getMessage());
             }
             toggleOtaNotifications(BluetoothGattDescriptor.ENABLE_INDICATION_VALUE);
         }).start();
@@ -357,6 +355,7 @@ public class BluetoothLeService extends Service {
 
     private void postCommandStart() {
         Log.i(TAG, "postCommandStart");
+
         int binSize = bin.length;
         byte[] payload = new byte[] {
                 (byte) (binSize & 0xff),
@@ -377,14 +376,14 @@ public class BluetoothLeService extends Service {
 
     private void receiveCommandStartAck(int status) {
         Log.i(TAG, "receiveCommandStartAck: status=" + status);
-        if (status == COMMAND_ACK_ACCEPT) {
-            postBinData();
-        }
-
-        StartCommandAckMessage message = new StartCommandAckMessage(status);
-        if (gattCallback != null) {
-            //gattCallback.onMtuChanged(message);
-            onOta(message);
+        switch(status) {
+            case COMMAND_ACK_ACCEPT:
+                postBinData();
+                updateOtaStatus("Starting OTA update...");
+                break;
+            case COMMAND_ACK_REFUSE:
+                updateOtaStatus("Device refused OTA start request, try rebooting the BMS");
+                break;
         }
     }
 
@@ -404,12 +403,12 @@ public class BluetoothLeService extends Service {
         Log.i(TAG, "receiveCommandEndAck: status=" + status);
         switch (status) {
             case COMMAND_ACK_ACCEPT:
+                updateOtaStatus("OTA update complete!");
+                handlerToast.post(() -> Toast.makeText(getApplicationContext(), "OTA update complete!", Toast.LENGTH_LONG).show());
                 break;
-        }
-
-        EndCommandAckMessage message = new EndCommandAckMessage(status);
-        if (gattCallback != null) {
-            //gattCallback.onMtuChanged(message);
+            case COMMAND_ACK_REFUSE:
+                updateOtaStatus("Device refuse OTA end request");
+                break;
         }
     }
 
@@ -444,7 +443,7 @@ public class BluetoothLeService extends Service {
 
             if (ackIndex != expectIndex) {
                 Log.w(TAG, "takeSectorAck: Receive error index " + ackIndex + ", expect " + expectIndex);
-                onError(1);
+                updateOtaStatus("takeSectorAck: Receive error index " + ackIndex + ", expect " + expectIndex);
                 return;
             }
 
@@ -462,21 +461,22 @@ public class BluetoothLeService extends Service {
                     break;
                 case BIN_ACK_CRC_ERROR:
                     onError(2);
+                    updateOtaStatus("BIN_ACK_CRC_ERROR");
                     return;
                 case BIN_ACK_SECTOR_INDEX_ERROR:
                     int devExpectIndex = ((data[4] & 0xFF) | ((data[5] << 8) & 0xFF00));
                     Log.w(TAG, "parseSectorAck: device expect index = " + devExpectIndex);
-                    onError(3);
+                    updateOtaStatus("BIN_ACK_SECTOR_INDEX_ERROR, parseSectorAck: device expect index = " + devExpectIndex);
                     return;
                 case BIN_ACK_PAYLOAD_LENGTH_ERROR:
-                    onError(4);
+                    updateOtaStatus("BIN_ACK_PAYLOAD_LENGTH_ERROR");
                     return;
                 default:
-                    onError(5);
+                   updateOtaStatus("Unkown error");
             }
         } catch (Exception e) {
             Log.w(TAG, "parseSectorAck error", e);
-            onError(-1);
+            updateOtaStatus("parseSectorAck error, msg: " + e.getMessage());
         }
     }
 
@@ -490,7 +490,7 @@ public class BluetoothLeService extends Service {
             int checksum = EspCRC16.crc(packet, 0, 18);
             if (crc != checksum) {
                 Log.w(TAG, "parseCommandPacket: Checksum error: " + crc + ", expect " + checksum);
-                showDialog("parseCommandPacket: Checksum error: " + crc + ", expect " + checksum);
+                updateOtaStatus("parseCommandPacket: Checksum error: " + crc + ", expect " + checksum);
                 return;
             }
         }
@@ -510,6 +510,7 @@ public class BluetoothLeService extends Service {
                     break;
                 default:
                     // Handle unrecognized ackId
+                    updateOtaStatus("Unknown acknowledgement ID");
                     break;
             }
 
@@ -521,9 +522,6 @@ public class BluetoothLeService extends Service {
 
     public void setIsMinimized(boolean minimized) {
         isMinimized = minimized;
-    }
-    public void onOta(BleOTAMessage message) {
-        logQuick("onota");
     }
 
     public void onError(int error) {
@@ -542,11 +540,9 @@ public class BluetoothLeService extends Service {
                 intent.putExtra("CONNECTION_STATE_CHANGED", true);
                 logQuick("sending broadcast from bleservice");
                 sendBroadcast(intent);
-              //  gatt.requestConnectionPriority(BluetoothGatt.CONNECTION_PRIORITY_HIGH);
                 if(!gatt.requestMtu(MTU_SIZE)) {
                     onMtuChanged(gatt, MTU_SIZE, MTU_STATUS_FAILED);
                 }
-                //bluetoothGatt.discoverServices();
                 //no fuckin clue why i get GATT_INSUFFICIENT_AUTHORIZATION on disconnect
             } else if (newState == BluetoothGatt.STATE_DISCONNECTED && (status == BluetoothGatt.GATT_SUCCESS|| status == BluetoothGatt.GATT_INSUFFICIENT_AUTHORIZATION)) {
                 Log.i(TAG, "Disconnected from GATT server.");
@@ -605,7 +601,6 @@ public class BluetoothLeService extends Service {
                 logQuick("homefraglist size: " + tempHomefragmentBluetoothGattCharacteristicList.size());
                 tempBluetoothGattCharacteristicList.addAll(bluetoothGattCharacteristicList);
                 toggleFaultNotifications();
-
             }
         }
         @Override
@@ -624,11 +619,15 @@ public class BluetoothLeService extends Service {
         @Override
         public void onDescriptorWrite(BluetoothGatt gatt, BluetoothGattDescriptor descriptor, int status) {
             if(descriptor.getCharacteristic().getUuid().toString().startsWith("8", 4)) {
+                if(status != BluetoothGatt.GATT_SUCCESS) {
+                    updateOtaStatus("Enabling notifications failed, status=" + status + ", char=" + descriptor.getCharacteristic().getUuid().toString());
+                }
                 otaCharacteristicsToGetNotificationsOnList.remove(otaCharacteristicsToGetNotificationsOnList.get(otaCharacteristicsToGetNotificationsOnList.size() - 1));
                 if(!otaCharacteristicsToGetNotificationsOnList.isEmpty()) {
                     writeOtaDescriptors();
                 } else {
                     logQuick("all ota descriptors written");
+                    updateOtaStatus("Successfully enabled notifications");
                     postCommandStart();
                 }
             } else {
@@ -738,7 +737,13 @@ public class BluetoothLeService extends Service {
     }
 
     public void requestHighPriorityConnection() {
-        bluetoothGatt.requestConnectionPriority(BluetoothGatt.CONNECTION_PRIORITY_HIGH);
+
+        if(bluetoothGatt.requestConnectionPriority(BluetoothGatt.CONNECTION_PRIORITY_HIGH)) {
+            updateOtaStatus("Successfully requested high priority connection");
+        } else {
+            updateOtaStatus("High priority connection request unsuccessful");
+        }
+
     }
     public void writeAllParametersToBMS() {
 
@@ -795,11 +800,6 @@ public class BluetoothLeService extends Service {
         }
     }
 
-    public void readCharacteristic(String uuid) {
-        BluetoothGattCharacteristic characteristic = getCharacteristicByUUID(uuid);
-        bluetoothGatt.readCharacteristic(characteristic);
-    }
-
     private BluetoothGattCharacteristic getCharacteristicByUUID(String uuid) {
         for (BluetoothGattCharacteristic characteristic : bluetoothGattCharacteristicList) {
             if (characteristic.getUuid().toString().startsWith(uuid, 4)) {
@@ -833,6 +833,12 @@ public class BluetoothLeService extends Service {
                 });
         AlertDialog dialog = builder.create();
         dialog.show();
+    }
+
+    private void updateOtaStatus(String message) {
+        Intent intent = new Intent("OTA_STATUS");
+        intent.putExtra("OTA_STATUS", message);
+        sendBroadcast(intent);
     }
 
     public void writeCharacteristic(String uuid, byte[] value) {
