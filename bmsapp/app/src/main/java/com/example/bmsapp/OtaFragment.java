@@ -42,7 +42,7 @@ public class OtaFragment extends Fragment {
     private final Handler handlerToast = new Handler(Looper.getMainLooper());
     private static final int PICK_FILE_REQUEST_CODE = 1;
     private Uri selectedFile;
-
+    private int sectorsSize;
 
     @Override public void onStart() {
         super.onStart();
@@ -74,7 +74,6 @@ public class OtaFragment extends Fragment {
             logQuick("upload");
             if(bluetoothLeService != null && bluetoothLeService.getConnectionState() == BluetoothProfile.STATE_CONNECTED) {
                 bluetoothLeService.startOta(selectedFile);
-                //bluetoothLeService.toggleOtaNotifications(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE);
             } else {
                 handlerToast.post(() -> Toast.makeText(getContext(), "Not connected.", Toast.LENGTH_LONG).show());
             }
@@ -118,7 +117,8 @@ public class OtaFragment extends Fragment {
                 String filename = getFileName(selectedFile);
                 if(filename.endsWith(".bin")) {
                     binding.textViewFileName.setText("File name: " + filename);
-                    binding.textViewFileSize.setText("Size: ");
+                    binding.textViewOTAProgress.setText("0%");
+                    binding.progressBarOTA.setProgress(0);
                     Cursor cursor = requireActivity().getContentResolver().query(selectedFile, null, null, null, null);
                     if (cursor != null && cursor.moveToFirst()) {
                         int sizeIndex = cursor.getColumnIndex(OpenableColumns.SIZE);
@@ -128,7 +128,7 @@ public class OtaFragment extends Fragment {
                     }
                     enableUpgradeButton();
                 } else {
-                    AlertDialog.Builder builder = new AlertDialog.Builder(getActivity());
+                    AlertDialog.Builder builder = new AlertDialog.Builder(requireActivity());
                     builder.setMessage("Invalid file type")
                             .setPositiveButton("ok", (dialog, which) -> {
                             });
@@ -158,32 +158,40 @@ public class OtaFragment extends Fragment {
         @Override
         public void onReceive(Context context, Intent intent) {
             String action = intent.getAction();
-            if (action == null) {
+            if (action == null || binding == null) {
+                handlerToast.post(() -> Toast.makeText(getContext(), "Action or binding is null.", Toast.LENGTH_LONG).show());
                 return;
             }
-            logQuick("received stuff in otafrag");
-            if(action.equals("CONNECTION_STATE_CHANGED") && binding != null) {
-                if (intent.getBooleanExtra("CONNECTION_STATE_CHANGED", false)) {
-                    binding.textViewMac.setText("Connected to: " + bluetoothLeService.getConnectedDevice().getAddress());
-                } else {
-                    binding.textViewMac.setText("Connected to: NOT CONNECTED");
-                    disableUpgradeButton();
-                    binding.textViewFileName.setText("File name:");
-                    binding.textViewFileSize.setText("Size:");
-                }
+            switch(action) {
+                case "CONNECTION_STATE_CHANGED":
+                    if (intent.getBooleanExtra("CONNECTION_STATE_CHANGED", false)) {
+                        binding.textViewMac.setText("Connected to: " + bluetoothLeService.getConnectedDevice().getAddress());
+                    } else {
+                        binding.textViewMac.setText("Connected to: NOT CONNECTED");
+                        disableUpgradeButton();
+                        binding.textViewFileName.setText("File name:");
+                        binding.textViewFileSize.setText("Size:");
+                    }
+
+                    break;
+                case "SECTORS_SIZE":
+                    logQuick("val " + intent.getIntExtra("SECTORS_SIZE", 0));
+                    binding.progressBarOTA.setMax(intent.getIntExtra("SECTORS_SIZE", 0) - 1);
+                    sectorsSize = intent.getIntExtra("SECTORS_SIZE", 0);
+                    break;
+                case "OTA_PROGRESS":
+                    int progress = intent.getIntExtra("OTA_PROGRESS", 0);
+                    binding.progressBarOTA.setProgress(progress);
+                    double percent = ( (double) progress / sectorsSize) * 100.0;
+                    binding.textViewOTAProgress.setText(Math.round(percent) + "%");
+                    break;
             }
         }
     };
     private final ServiceConnection serviceConnection = new ServiceConnection() {
         @Override
         public void onServiceConnected(ComponentName componentName, IBinder service) {
-            logQuick("service connected");
-            BluetoothLeService.LocalBinder binder = (BluetoothLeService.LocalBinder) service;
-           // bluetoothLeService = binder.getService();
-            //MainActivity activity = (MainActivity) requireActivity();
-            //if (activity.getBluetoothservice() == null) {
-            //    activity.setBluetoothLeService(bluetoothLeService);
-           // }
+
         }
 
         @Override
@@ -201,10 +209,11 @@ public class OtaFragment extends Fragment {
     public void onResume() {
         super.onResume();
         ContextCompat.registerReceiver(requireContext(), bleUpdateReceiver, new IntentFilter("CONNECTION_STATE_CHANGED"), ContextCompat.RECEIVER_NOT_EXPORTED);
+        ContextCompat.registerReceiver(requireContext(), bleUpdateReceiver, new IntentFilter("SECTORS_SIZE"), ContextCompat.RECEIVER_NOT_EXPORTED);
+        ContextCompat.registerReceiver(requireContext(), bleUpdateReceiver, new IntentFilter("OTA_PROGRESS"), ContextCompat.RECEIVER_NOT_EXPORTED);
     }
     @Override
     public void onPause() {
-        //requireActivity().unregisterReceiver(bleUpdateReceiver);
         super.onPause();
     }
     @Override

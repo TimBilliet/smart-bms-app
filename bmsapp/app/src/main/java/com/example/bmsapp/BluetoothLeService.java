@@ -2,6 +2,7 @@ package com.example.bmsapp;
 
 import android.Manifest;
 import android.annotation.SuppressLint;
+import android.app.AlertDialog;
 import android.app.Service;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
@@ -158,7 +159,7 @@ public class BluetoothLeService extends Service {
         try {
             bluetoothGatt.disconnect();
         } catch (Exception ex) {
-            handlerToast.post(() -> Toast.makeText(getApplicationContext(), ex.getMessage(), Toast.LENGTH_SHORT).show());
+            showDialog(ex.getMessage());
         }
     }
 
@@ -181,35 +182,16 @@ public class BluetoothLeService extends Service {
         }
     }
     public void startOta(Uri uri) {
-        /*
-        binFileUri = uri;
-        //Executor executor = Executor.newSingleThreadExecutor();
-        try (InputStream inputStream = getContentResolver().openInputStream(uri)){
-            if(inputStream != null) {
-                logQuick("not null stream");
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                    bin = inputStream.readAllBytes();
+        new Thread(() -> {
+            try {
+                InputStream inputStream = getContentResolver().openInputStream(uri);
+                if(inputStream != null) {
+                    bin = readBytes(inputStream);
                 }
+            } catch (Exception ex) {
+                showDialog("Error while starting OTA: " + ex.getMessage());
             }
-        } catch (Exception ex) {
-
-        }
-        toggleOtaNotifications(BluetoothGattDescriptor.ENABLE_INDICATION_VALUE);
-
-         */
-        new Thread(new Runnable() {
-            @Override
-            public void run() {
-                try {
-                    InputStream inputStream = getContentResolver().openInputStream(uri);
-                    if(inputStream != null) {
-                        bin = readBytes(inputStream);
-                    }
-                } catch (Exception ex) {
-
-                }
-                toggleOtaNotifications(BluetoothGattDescriptor.ENABLE_INDICATION_VALUE);
-            }
+            toggleOtaNotifications(BluetoothGattDescriptor.ENABLE_INDICATION_VALUE);
         }).start();
     }
     private byte[] readBytes(InputStream inputStream) throws IOException {
@@ -318,10 +300,13 @@ public class BluetoothLeService extends Service {
                 byte[] sector = Arrays.copyOf(buf, read);
                 sectors.add(sector);
             }
-        } catch (IOException e) {
-            handlerToast.post(() -> Toast.makeText(getApplicationContext(), e.getMessage(), Toast.LENGTH_LONG).show());
+        } catch (IOException ex) {
+            showDialog("Error while initializing packets: " + ex.getMessage());
         }
         Log.d(TAG, "initPackets: sectors size = " + sectors.size());
+        Intent intent = new Intent("SECTORS_SIZE");
+        intent.putExtra("SECTORS_SIZE", sectors.size());
+        sendBroadcast(intent);
         byte[] block = new byte[packetSize - 3];
         for (int index = 0; index < sectors.size(); index++) {
             byte[] sector = sectors.get(index);
@@ -348,8 +333,8 @@ public class BluetoothLeService extends Service {
                         outputStream.write((crc >> 8) & 0xff);
                     }
                     packets.add(outputStream.toByteArray());
-                } catch (Exception e) {
-                    handlerToast.post(() -> Toast.makeText(getApplicationContext(), e.getMessage(), Toast.LENGTH_LONG).show());
+                } catch (Exception ex) {
+                    showDialog("Error while writing outputstream: " + ex.getMessage());
                 }
                 sequence++;
             }
@@ -380,26 +365,19 @@ public class BluetoothLeService extends Service {
                 (byte) ((binSize >> 24) & 0xff)
         };
         byte[] packet = genCommandPacket(COMMAND_ID_START, payload);
-        for(int i = 0; i < packet.length; i++) {
-            logQuick("packet " + packet[i]);
-        }
         if (commandChar != null) {
-            //commandChar.setValue(packet);
             if (bluetoothGatt != null) {
-                logQuick("before writing to command char");
-                bluetoothGatt.writeCharacteristic(commandChar);
                 writeCharacteristic(CHAR_COMMAND_UUID, packet);
-                logQuick("afterwriting to command char");
             }
         } else {
-            logQuick("COMMANDCHARNULL");
+            logQuick("Command char is null");
+            handlerToast.post(() -> Toast.makeText(getApplicationContext(), "Command char is null", Toast.LENGTH_LONG).show());
         }
     }
 
     private void receiveCommandStartAck(int status) {
         Log.i(TAG, "receiveCommandStartAck: status=" + status);
         if (status == COMMAND_ACK_ACCEPT) {
-            logQuick("POST BIN DEIJTA");
             postBinData();
         }
 
@@ -436,15 +414,13 @@ public class BluetoothLeService extends Service {
     }
 
     private void postBinData() {
-        new Thread(new Runnable() {
-            @Override
-            public void run() {
-                try {
-                    initPackets();
-                } catch (IOException e) {
-                }
-                postNextPacket();
+        new Thread(() -> {
+            try {
+                initPackets();
+            } catch (IOException ex) {
+                showDialog("Error while posting packet: " + ex.getMessage());
             }
+            postNextPacket();
         }).start();
     }
     private void postNextPacket() {
@@ -479,6 +455,10 @@ public class BluetoothLeService extends Service {
             switch (ackStatus) {
                 case BIN_ACK_SUCCESS:
                     postNextPacket();
+                    Intent intent = new Intent("OTA_PROGRESS");
+                    intent.putExtra("OTA_PROGRESS", ackIndex);
+                    logQuick("ackindex: " + ackIndex);
+                    sendBroadcast(intent);
                     break;
                 case BIN_ACK_CRC_ERROR:
                     onError(2);
@@ -510,6 +490,7 @@ public class BluetoothLeService extends Service {
             int checksum = EspCRC16.crc(packet, 0, 18);
             if (crc != checksum) {
                 Log.w(TAG, "parseCommandPacket: Checksum error: " + crc + ", expect " + checksum);
+                showDialog("parseCommandPacket: Checksum error: " + crc + ", expect " + checksum);
                 return;
             }
         }
@@ -569,7 +550,6 @@ public class BluetoothLeService extends Service {
                 //no fuckin clue why i get GATT_INSUFFICIENT_AUTHORIZATION on disconnect
             } else if (newState == BluetoothGatt.STATE_DISCONNECTED && (status == BluetoothGatt.GATT_SUCCESS|| status == BluetoothGatt.GATT_INSUFFICIENT_AUTHORIZATION)) {
                 Log.i(TAG, "Disconnected from GATT server.");
-
                 handlerToast.post(() -> Toast.makeText(getApplicationContext(), "Disconnected", Toast.LENGTH_LONG).show());
                 Intent intent = new Intent("CONNECTION_STATE_CHANGED");
                 intent.putExtra("CONNECTION_STATE_CHANGED", false);
@@ -644,7 +624,6 @@ public class BluetoothLeService extends Service {
         @Override
         public void onDescriptorWrite(BluetoothGatt gatt, BluetoothGattDescriptor descriptor, int status) {
             if(descriptor.getCharacteristic().getUuid().toString().startsWith("8", 4)) {
-                logQuick("8018");
                 otaCharacteristicsToGetNotificationsOnList.remove(otaCharacteristicsToGetNotificationsOnList.get(otaCharacteristicsToGetNotificationsOnList.size() - 1));
                 if(!otaCharacteristicsToGetNotificationsOnList.isEmpty()) {
                     writeOtaDescriptors();
@@ -681,9 +660,8 @@ public class BluetoothLeService extends Service {
                 intent.putExtra(uuid, data);
                 sendBroadcast(intent);
             } else if(characteristic.getUuid().toString().startsWith("8", 4)) {
-                logQuick("otaservice characteristicChanged: char=" + characteristic.getUuid());
                 if (characteristic.equals(recvFwChar)) {
-                    logQuick("receivefwchar");
+                    //logQuick("receivefwchar");
                     parseSectorAck(characteristic.getValue());
                 } else if (characteristic.equals(progressChar)) {
                     // Handle progressChar case (if needed)
@@ -713,10 +691,10 @@ public class BluetoothLeService extends Service {
                     }
                 }
             } else if(characteristic.getUuid().toString().startsWith(CHAR_RECV_FW_UUID, 4)){
-                logQuick("post next packet");
                 postNextPacket();
                 if(status != BluetoothGatt.GATT_SUCCESS) {
                     Log.e(TAG, "onCharacteristicWrite: status=" + status);
+
                 }
             }
         }
@@ -796,9 +774,6 @@ public class BluetoothLeService extends Service {
                     break;
                 case "4005":
                     data = new byte[4];
-                    //data[0] = Byte.parseByte(sharedPreferences.getString("min_balance_voltage", "5"));
-                    //datargernge
-
                     data[0] = (byte) ((Integer.parseInt(sharedPreferences.getString("min_balance_voltage", "3900")) & 0xFF));
                     data[1] = (byte) ((Integer.parseInt(sharedPreferences.getString("min_balance_voltage", "3900")) >> 8) & 0xFF);
                     data[2] = (byte) (Integer.parseInt(sharedPreferences.getString("max_cell_voltage_diff", "15")) & 0xFF);
@@ -826,7 +801,6 @@ public class BluetoothLeService extends Service {
     }
 
     private BluetoothGattCharacteristic getCharacteristicByUUID(String uuid) {
-        //logQuick("char list size: " + bluetoothGattCharacteristicList.size());
         for (BluetoothGattCharacteristic characteristic : bluetoothGattCharacteristicList) {
             if (characteristic.getUuid().toString().startsWith(uuid, 4)) {
                 return characteristic;
@@ -850,6 +824,15 @@ public class BluetoothLeService extends Service {
         }
         readingHomefragmentCharacteristics = true;
         requestHomefragmentCharacteristics();
+    }
+    private void showDialog(String message) {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setMessage(message)
+                .setPositiveButton("ok", (dialog, which) -> {
+
+                });
+        AlertDialog dialog = builder.create();
+        dialog.show();
     }
 
     public void writeCharacteristic(String uuid, byte[] value) {
