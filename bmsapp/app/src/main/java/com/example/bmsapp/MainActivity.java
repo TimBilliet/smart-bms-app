@@ -35,6 +35,7 @@ import androidx.core.content.ContextCompat;
 import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentManager;
 import androidx.navigation.NavController;
+import androidx.navigation.NavDestination;
 import androidx.navigation.Navigation;
 import androidx.navigation.ui.AppBarConfiguration;
 import androidx.navigation.ui.NavigationUI;
@@ -65,6 +66,8 @@ public class MainActivity extends AppCompatActivity {
     private static final int BT_PERMISSION_REQUEST_CODE = 420;
     private static final String CHANNEL_ID = "1";
     String storedMac;
+    private Menu menu;
+    private boolean showConnectIcon = true;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -98,13 +101,7 @@ public class MainActivity extends AppCompatActivity {
                         .show();
             }
         });
-        if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            if (ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED) {
-                requestBluetoothEnable();
-            }
-        } else if(ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH) == PackageManager.PERMISSION_GRANTED) {
-            requestBluetoothEnable();
-        }
+        requestBluetoothEnable();
 
         Intent gattServiceIntent = new Intent(this, BluetoothLeService.class);
         this.bindService(gattServiceIntent, serviceConnection, Context.BIND_AUTO_CREATE);
@@ -167,7 +164,12 @@ public class MainActivity extends AppCompatActivity {
                 dialog.show();
                 finish();
             }
-            bluetoothLeService.connect(convertToUpperCase(storedMac));
+            if(!Objects.equals(storedMac, "AA:AA:AA:AA:AA:AA") && isValidMacAddress(storedMac)) {
+                bluetoothLeService.connect(convertToUpperCase(storedMac));
+            } else {
+                Toast.makeText(MainActivity.this, "Invalid stored MAC address.", Toast.LENGTH_SHORT).show();
+            }
+
             bluetoothLeService.setIsMinimized(false);
             logQuick("connecting");
         }
@@ -231,6 +233,9 @@ public class MainActivity extends AppCompatActivity {
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         getMenuInflater().inflate(R.menu.menu_main, menu);
+        this.menu = menu;
+        MenuItem disconnectIcon = menu.findItem(R.id.action_disconnect);
+        disconnectIcon.setVisible(false);
         return true;
     }
 
@@ -283,6 +288,19 @@ public class MainActivity extends AppCompatActivity {
                     NotificationManager notificationManager = (NotificationManager) MainActivity.this.getSystemService(Context.NOTIFICATION_SERVICE);
                     notificationManager.notify(0, builder.build());
                 }
+            } else if(Objects.equals(intent.getAction(), "CONNECTION_STATE_CHANGED")) {
+                logQuick("received con state changed in mainactiv");
+                MenuItem connectIcon= menu.findItem(R.id.action_connect);
+                MenuItem disconnectIcon = menu.findItem(R.id.action_disconnect);
+                if(intent.getBooleanExtra("CONNECTION_STATE_CHANGED", false)) {
+                   connectIcon.setVisible(false);
+                    disconnectIcon.setVisible(true);
+                    showConnectIcon = false;
+                } else {
+                    connectIcon.setVisible(true);
+                    disconnectIcon.setVisible(false);
+                    showConnectIcon = true;
+                }
             }
         }
     };
@@ -292,7 +310,9 @@ public class MainActivity extends AppCompatActivity {
         if (bluetoothLeService != null) {
             bluetoothLeService.setIsMinimized(false);
         }
+
         ContextCompat.registerReceiver(this,bleUpdateReceiver, new IntentFilter("3007"), ContextCompat.RECEIVER_NOT_EXPORTED);
+        ContextCompat.registerReceiver(this,bleUpdateReceiver, new IntentFilter("CONNECTION_STATE_CHANGED"), ContextCompat.RECEIVER_NOT_EXPORTED);
         super.onResume();
     }
 
@@ -306,7 +326,6 @@ public class MainActivity extends AppCompatActivity {
     }
     @Override
     public void onDestroy() {
-        logQuick("destroying");
         super.onDestroy();
     }
 
@@ -328,7 +347,26 @@ public class MainActivity extends AppCompatActivity {
             hideOverflowMenu = true;
             supportInvalidateOptionsMenu();
             return true;
-        }else if (id == android.R.id.home) {
+        } else if (id == R.id.action_connect) {
+            storedMac = sharedPreferences.getString("mac_address", "AA:AA:AA:AA:AA:AA");
+            if(bluetoothLeService.getConnectionState() != BluetoothGatt.STATE_CONNECTED) {
+                logQuick("connecting!");
+                if(!Objects.equals(storedMac, "AA:AA:AA:AA:AA:AA") && isValidMacAddress(storedMac)) {
+                    logQuick("stored mac: " + storedMac);
+                    bluetoothLeService.connect(convertToUpperCase(storedMac));
+                } else {
+                    Toast.makeText(this, "Invalid stored MAC address.", Toast.LENGTH_SHORT).show();
+                }
+            }
+            supportInvalidateOptionsMenu();
+            return true;
+        } else if (id == R.id.action_disconnect) {
+            if(bluetoothLeService.getConnectionState() == BluetoothGatt.STATE_CONNECTED) {
+                bluetoothLeService.disconnect();
+            }
+            supportInvalidateOptionsMenu();
+            return true;
+        } else if (id == android.R.id.home) {
             hideOverflowMenu = false;
             supportInvalidateOptionsMenu();
             navController.navigate(R.id.HomeFragment);
@@ -372,12 +410,20 @@ public class MainActivity extends AppCompatActivity {
         byte[] value = {0};
         bluetoothLeService.writeCharacteristic("4007", value);
     }
-
+    private static boolean isValidMacAddress(String macAddress) {
+        final String MAC_ADDRESS_PATTERN = "^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$";
+        final Pattern pattern = Pattern.compile(MAC_ADDRESS_PATTERN);
+        return pattern.matcher(macAddress).matches();
+    }
     @Override
     public boolean onPrepareOptionsMenu(Menu menu) {
         menu.setGroupVisible(0, !hideOverflowMenu);
         MenuItem item1 = menu.findItem(R.id.action_settings);
         MenuItem item2 = menu.findItem(R.id.action_about);
+        MenuItem disconnectIcon = menu.findItem(R.id.action_disconnect);
+        MenuItem connectIcon = menu.findItem(R.id.action_connect);
+        disconnectIcon.setVisible(!showConnectIcon);
+        connectIcon.setVisible(showConnectIcon);
         item1.setVisible(!hideOverflowMenu);
         item2.setVisible(!hideOverflowMenu);
         super.onPrepareOptionsMenu(menu);

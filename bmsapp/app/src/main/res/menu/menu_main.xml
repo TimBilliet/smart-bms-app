@@ -5,6 +5,16 @@
     android:id="@+id/main_menu">
 
     <item
+        android:id="@+id/action_connect"
+        android:icon="@drawable/disconnect_plug_icon"
+        android:title="@string/connect"
+        app:showAsAction="always" />
+    <item
+        android:id="@+id/action_disconnect"
+        android:icon="@drawable/connected_plug_icon"
+        android:title="@string/disconnect"
+        app:showAsAction="always" />
+    <item
         android:id="@+id/power_off"
         android:icon="@drawable/baseline_power_settings_new_24"
         android:title="@string/power_off"

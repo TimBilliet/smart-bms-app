@@ -1,9 +1,9 @@
 package com.example.bmsapp;
 
+import android.annotation.SuppressLint;
 import android.app.AlertDialog;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothGatt;
-import android.bluetooth.BluetoothGattDescriptor;
 import android.bluetooth.BluetoothProfile;
 import android.content.BroadcastReceiver;
 import android.content.ComponentName;
@@ -32,15 +32,7 @@ import androidx.fragment.app.Fragment;
 
 import com.example.bmsapp.databinding.FragmentOtaBinding;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.LinkedList;
-import java.util.List;
 import java.util.Objects;
-import java.util.concurrent.atomic.AtomicInteger;
 
 public class OtaFragment extends Fragment {
 
@@ -55,6 +47,7 @@ public class OtaFragment extends Fragment {
     @Override public void onStart() {
         super.onStart();
     }
+    @SuppressLint("SetTextI18n")
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
         binding = FragmentOtaBinding.inflate(inflater, container, false);
@@ -115,6 +108,7 @@ public class OtaFragment extends Fragment {
         binding.buttonUpload.setEnabled(false);
     }
 
+    @SuppressLint("SetTextI18n")
     @Override
     public void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
@@ -144,6 +138,7 @@ public class OtaFragment extends Fragment {
             }
         }
     }
+    @SuppressLint("Range")
     private String getFileName(Uri uri) {
         String fileName = null;
         if (Objects.equals(uri.getScheme(), "content")) {
@@ -159,6 +154,7 @@ public class OtaFragment extends Fragment {
         return fileName;
     }
     private final BroadcastReceiver bleUpdateReceiver = new BroadcastReceiver() {
+        @SuppressLint("SetTextI18n")
         @Override
         public void onReceive(Context context, Intent intent) {
             String action = intent.getAction();

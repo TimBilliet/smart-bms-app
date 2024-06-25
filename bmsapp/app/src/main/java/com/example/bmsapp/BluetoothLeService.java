@@ -4,13 +4,11 @@ import android.Manifest;
 import android.annotation.SuppressLint;
 import android.app.Service;
 import android.bluetooth.BluetoothAdapter;
-import android.bluetooth.BluetoothClass;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothGatt;
 import android.bluetooth.BluetoothGattCallback;
 import android.bluetooth.BluetoothGattCharacteristic;
 import android.bluetooth.BluetoothGattDescriptor;
-import android.bluetooth.BluetoothGattServerCallback;
 import android.bluetooth.BluetoothGattService;
 import android.bluetooth.BluetoothManager;
 import android.bluetooth.BluetoothProfile;
@@ -30,9 +28,6 @@ import android.widget.Toast;
 import androidx.core.app.ActivityCompat;
 import androidx.preference.PreferenceManager;
 
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-
 import com.example.bmsapp.message.BleOTAMessage;
 import com.example.bmsapp.message.EndCommandAckMessage;
 import com.example.bmsapp.message.StartCommandAckMessage;
@@ -47,7 +42,6 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
-import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicInteger;
 
 @SuppressLint("MissingPermission")
@@ -159,6 +153,13 @@ public class BluetoothLeService extends Service {
             bluetoothGatt.close();
         }
         bluetoothGatt = device.connectGatt(this, false, gattCallback);
+    }
+    public void disconnect() {
+        try {
+            bluetoothGatt.disconnect();
+        } catch (Exception ex) {
+            handlerToast.post(() -> Toast.makeText(getApplicationContext(), ex.getMessage(), Toast.LENGTH_SHORT).show());
+        }
     }
 
     public int getConnectionState() {
@@ -318,7 +319,7 @@ public class BluetoothLeService extends Service {
                 sectors.add(sector);
             }
         } catch (IOException e) {
-            e.printStackTrace();
+            handlerToast.post(() -> Toast.makeText(getApplicationContext(), e.getMessage(), Toast.LENGTH_LONG).show());
         }
         Log.d(TAG, "initPackets: sectors size = " + sectors.size());
         byte[] block = new byte[packetSize - 3];
@@ -348,7 +349,7 @@ public class BluetoothLeService extends Service {
                     }
                     packets.add(outputStream.toByteArray());
                 } catch (Exception e) {
-                    e.printStackTrace();
+                    handlerToast.post(() -> Toast.makeText(getApplicationContext(), e.getMessage(), Toast.LENGTH_LONG).show());
                 }
                 sequence++;
             }
@@ -699,7 +700,7 @@ public class BluetoothLeService extends Service {
         public void onCharacteristicWrite(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, int status) {
             //logQuick("written to: " + characteristic.getUuid().toString().substring(4, 8));
             if(!characteristic.getUuid().toString().startsWith("8",4)) {
-                logQuick("size: " + parameterCharacteristicList.size());
+               // logQuick("size: " + parameterCharacteristicList.size());
                 if (!parameterCharacteristicList.isEmpty()) {
                     parameterCharacteristicList.remove(parameterCharacteristicList.get(parameterCharacteristicList.size() - 1));
                     if (!parameterCharacteristicList.isEmpty()) {
@@ -825,7 +826,7 @@ public class BluetoothLeService extends Service {
     }
 
     private BluetoothGattCharacteristic getCharacteristicByUUID(String uuid) {
-        logQuick("char list size: " + bluetoothGattCharacteristicList.size());
+        //logQuick("char list size: " + bluetoothGattCharacteristicList.size());
         for (BluetoothGattCharacteristic characteristic : bluetoothGattCharacteristicList) {
             if (characteristic.getUuid().toString().startsWith(uuid, 4)) {
                 return characteristic;

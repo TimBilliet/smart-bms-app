@@ -28,4 +28,7 @@
     <string name="refresh">refresh</string>
     <string name="power_off">power_off</string>
     <string name="ota_update">OTA update</string>
+    <string name="connect_disconnect">connect_disconnect</string>
+    <string name="connect">connect</string>
+    <string name="disconnect">disconnect</string>
 </resources>

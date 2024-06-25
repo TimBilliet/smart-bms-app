@@ -13,7 +13,7 @@
 
         <Button
             android:id="@+id/buttonChooseFile"
-            android:layout_width="145dp"
+            android:layout_width="150dp"
             android:layout_height="wrap_content"
             android:layout_marginTop="40dp"
             android:layout_marginEnd="5dp"
@@ -31,9 +31,10 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginStart="5dp"
+            android:layout_marginTop="10dp"
             android:text="Connected to: NOT CONNECTED"
             app:layout_constraintStart_toStartOf="parent"
-            tools:layout_editor_absoluteY="30dp" />
+            app:layout_constraintTop_toTopOf="parent" />
 
         <Button
             android:id="@+id/buttonUpload"

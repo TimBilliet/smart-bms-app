@@ -249,9 +249,31 @@ public class HomeFragment extends Fragment{
                        // blue
                     }
                     break;
+                case "CONNECTION_STATE_CHANGED":
+                    // on disconenct
+                    if(!intent.getBooleanExtra("CONNECTION_STATE_CHANGED", false) && sharedPreferences.getBoolean("clear_on_disconnect", false)) {
+                        clearBmsInfo();
+                    }
             }
         }
     };
+
+    private void clearBmsInfo() {
+        textViewBatVoltage.setText("0");
+        textViewCurrent.setText("0");
+        textViewVoltageRange.setText("0V-4.2V");
+        textViewVoltageDifference.setText("0mV");
+        for (TextView cellState:textViewCellBalancingStateList) {
+            cellState.setText("");
+        }
+        for (TextView cellVoltage:textViewCellVoltagesList) {
+            cellVoltage.setText("0");
+        }
+
+        for(ProgressBar progressBar: progressBarCellList) {
+            progressBar.setProgress(0);
+        }
+    }
     private final ServiceConnection serviceConnection = new ServiceConnection() {
         @Override
         public void onServiceConnected(ComponentName componentName, IBinder service) {
@@ -285,6 +307,7 @@ public class HomeFragment extends Fragment{
         ContextCompat.registerReceiver(requireActivity(),bleUpdateReceiver, new IntentFilter("3006"), ContextCompat.RECEIVER_NOT_EXPORTED);
         ContextCompat.registerReceiver(requireActivity(),bleUpdateReceiver, new IntentFilter("4008"), ContextCompat.RECEIVER_NOT_EXPORTED);
         ContextCompat.registerReceiver(requireActivity(),bleUpdateReceiver, new IntentFilter("READY_TO_READ_CHARS"), ContextCompat.RECEIVER_NOT_EXPORTED);
+        ContextCompat.registerReceiver(requireActivity(),bleUpdateReceiver, new IntentFilter("CONNECTION_STATE_CHANGED"), ContextCompat.RECEIVER_NOT_EXPORTED);
         if(bluetoothLeService != null) {
            bluetoothLeService.readCharacteristicsForHomefragment();
         }

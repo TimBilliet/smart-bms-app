@@ -18,6 +18,12 @@
             app:summary="Automatically receive new values when they change"
             app:defaultValue="false"
             />
+        <SwitchPreference
+            app:key="clear_on_disconnect"
+            app:title="Clear info on disconnect"
+            app:summary="Clear BMS info in the homescreen on disconnect"
+            app:defaultValue="true"
+            />
 
     </PreferenceCategory>
     <PreferenceCategory app:title="BLE settings"

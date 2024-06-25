@@ -43,6 +43,8 @@ public class SettingsFragment extends PreferenceFragmentCompat {
     private EditTextPreference maximumCellVoltageDifferencePreference;
     private EditTextPreference idleCurrentPreference;
     private BluetoothLeService bluetoothLeService;
+
+    private EditTextPreference macAddressPreference;
     private final Handler handlerToast = new Handler(Looper.getMainLooper());
 
     @Override
@@ -58,7 +60,7 @@ public class SettingsFragment extends PreferenceFragmentCompat {
     public void onCreatePreferences(Bundle savedInstanceState, String rootKey) {
         logQuick("on create preferences");
         setPreferencesFromResource(R.xml.root_preferences, rootKey);
-        EditTextPreference macAddressPreference = findPreference("mac_address");
+        macAddressPreference = findPreference("mac_address");
         SwitchPreference notificationPreference = findPreference("receive_notifications");
         SwitchPreference autoUpdatePreference = findPreference("auto_update");
         onlyBalanceWhileChargingPreference = findPreference("only_balance_while_charging");
@@ -271,8 +273,12 @@ public class SettingsFragment extends PreferenceFragmentCompat {
                 case "CONNECTION_STATE_CHANGED":
                     if (intent.getBooleanExtra("CONNECTION_STATE_CHANGED", false)) {
                         logQuick("connection state changed to true");
-                        showDialog("Connected to: " + macAddress);
-                        Log.e(TAG, "CONNECTION STATE CHANGED TO TRUE IN SETTINGSFRAG");
+                        if(macAddress == null) {
+                            showDialog("Connected to: " + convertToUpperCase(macAddressPreference.getText()));
+                        } else {
+                            showDialog("Connected to: " + convertToUpperCase(macAddress));
+                        }
+
                     } else {
                        // requireActivity().unregisterReceiver(bleUpdateReceiver);
                     }
@@ -331,7 +337,7 @@ public class SettingsFragment extends PreferenceFragmentCompat {
         }
     };
 
-    public boolean isValidMacAddress(String macAddress) {
+    private static boolean isValidMacAddress(String macAddress) {
         final String MAC_ADDRESS_PATTERN = "^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$";
         final Pattern pattern = Pattern.compile(MAC_ADDRESS_PATTERN);
         return pattern.matcher(macAddress).matches();
