@@ -58,7 +58,6 @@ public class SettingsFragment extends PreferenceFragmentCompat {
 
     @Override
     public void onCreatePreferences(Bundle savedInstanceState, String rootKey) {
-        logQuick("on create preferences");
         setPreferencesFromResource(R.xml.root_preferences, rootKey);
         macAddressPreference = findPreference("mac_address");
         SwitchPreference notificationPreference = findPreference("receive_notifications");
@@ -279,8 +278,6 @@ public class SettingsFragment extends PreferenceFragmentCompat {
                             showDialog("Connected to: " + convertToUpperCase(macAddress));
                         }
 
-                    } else {
-                       // requireActivity().unregisterReceiver(bleUpdateReceiver);
                     }
                     break;
                 case "4001":

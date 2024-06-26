@@ -31,4 +31,7 @@
     <string name="connect_disconnect">connect_disconnect</string>
     <string name="connect">connect</string>
     <string name="disconnect">disconnect</string>
+    <string name="version_v0_1">Version: v0.1</string>
+    <string name="made_by_tim_billiet">Made by Tim Billiet</string>
+    <string name="github_com_timbilliet">github.com/TimBilliet</string>
 </resources>

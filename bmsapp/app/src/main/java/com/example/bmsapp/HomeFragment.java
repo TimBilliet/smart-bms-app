@@ -17,7 +17,6 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ProgressBar;
-import android.widget.Switch;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -25,6 +24,7 @@ import androidx.annotation.NonNull;
 import androidx.core.content.ContextCompat;
 import androidx.fragment.app.Fragment;
 import androidx.preference.PreferenceManager;
+import com.example.bmsapp.databinding.FragmentHomeBinding;
 
 import java.math.RoundingMode;
 import java.text.DecimalFormat;
@@ -33,71 +33,65 @@ import java.util.List;
 import java.util.Locale;
 
 public class HomeFragment extends Fragment{
-
+    private FragmentHomeBinding binding;
     public static final String TAG = "Homefragment";
-    private TextView textViewBatVoltage;
-    private TextView textViewCurrent;
-    private Switch enableChargingSwitch;
-    private Switch enableBalancingSwitch;
+
     private final List<TextView> textViewCellVoltagesList = new ArrayList<>();
     private final List<ProgressBar> progressBarCellList = new ArrayList<>();
     private final List<TextView> textViewCellBalancingStateList = new ArrayList<>();
-    private TextView textViewVoltageRange;
-    private TextView textViewVoltageDifference;
+
     private double chargeCurrentA;
     private SharedPreferences sharedPreferences;
     private final Handler handlerToast = new Handler(Looper.getMainLooper());
     private BluetoothLeService bluetoothLeService;
-    private  boolean onlyBalanceWhileCharging = true;
+    private boolean onlyBalanceWhileCharging = true;
+
 
     @Override
-    public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
-        View view = inflater.inflate(R.layout.fragment_home, container, false);
-        textViewBatVoltage = view.findViewById(R.id.textViewBatVoltage);
-        textViewCurrent = view.findViewById(R.id.textViewCurrent);
-        textViewCellVoltagesList.add(view.findViewById(R.id.textViewCellVoltage1));
-        textViewCellVoltagesList.add(view.findViewById(R.id.textViewCellVoltage2));
-        textViewCellVoltagesList.add(view.findViewById(R.id.textViewCellVoltage3));
-        textViewCellVoltagesList.add(view.findViewById(R.id.textViewCellVoltage4));
-        textViewCellVoltagesList.add(view.findViewById(R.id.textViewCellVoltage5));
-        textViewCellVoltagesList.add(view.findViewById(R.id.textViewCellVoltage6));
-        textViewCellVoltagesList.add(view.findViewById(R.id.textViewCellVoltage7));
-        textViewCellVoltagesList.add(view.findViewById(R.id.textViewCellVoltage8));
-        textViewCellVoltagesList.add(view.findViewById(R.id.textViewCellVoltage9));
-        textViewCellVoltagesList.add(view.findViewById(R.id.textViewCellVoltage10));
-        progressBarCellList.add(view.findViewById(R.id.progressBarCell1));
-        progressBarCellList.add(view.findViewById(R.id.progressBarCell2));
-        progressBarCellList.add(view.findViewById(R.id.progressBarCell3));
-        progressBarCellList.add(view.findViewById(R.id.progressBarCell4));
-        progressBarCellList.add(view.findViewById(R.id.progressBarCell5));
-        progressBarCellList.add(view.findViewById(R.id.progressBarCell6));
-        progressBarCellList.add(view.findViewById(R.id.progressBarCell7));
-        progressBarCellList.add(view.findViewById(R.id.progressBarCell8));
-        progressBarCellList.add(view.findViewById(R.id.progressBarCell9));
-        progressBarCellList.add(view.findViewById(R.id.progressBarCell10));
-        textViewCellBalancingStateList.add(view.findViewById(R.id.textViewBalancing1));
-        textViewCellBalancingStateList.add(view.findViewById(R.id.textViewBalancing2));
-        textViewCellBalancingStateList.add(view.findViewById(R.id.textViewBalancing3));
-        textViewCellBalancingStateList.add(view.findViewById(R.id.textViewBalancing4));
-        textViewCellBalancingStateList.add(view.findViewById(R.id.textViewBalancing5));
-        textViewCellBalancingStateList.add(view.findViewById(R.id.textViewBalancing6));
-        textViewCellBalancingStateList.add(view.findViewById(R.id.textViewBalancing7));
-        textViewCellBalancingStateList.add(view.findViewById(R.id.textViewBalancing8));
-        textViewCellBalancingStateList.add(view.findViewById(R.id.textViewBalancing9));
-        textViewCellBalancingStateList.add(view.findViewById(R.id.textViewBalancing10));
-        textViewVoltageRange = view.findViewById(R.id.textViewRange);
-        textViewVoltageDifference = view.findViewById(R.id.textViewDifference);
-        enableBalancingSwitch = view.findViewById(R.id.switchBalancing);
-        enableChargingSwitch = view.findViewById(R.id.switchCharging);
+    public View onCreateView(@NonNull LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
+        binding = FragmentHomeBinding.inflate(inflater, container, false);
+        textViewCellVoltagesList.add(binding.textViewCellVoltage1);
+        textViewCellVoltagesList.add(binding.textViewCellVoltage2);
+        textViewCellVoltagesList.add(binding.textViewCellVoltage3);
+        textViewCellVoltagesList.add(binding.textViewCellVoltage4);
+        textViewCellVoltagesList.add(binding.textViewCellVoltage5);
+        textViewCellVoltagesList.add(binding.textViewCellVoltage6);
+        textViewCellVoltagesList.add(binding.textViewCellVoltage7);
+        textViewCellVoltagesList.add(binding.textViewCellVoltage8);
+        textViewCellVoltagesList.add(binding.textViewCellVoltage9);
+        textViewCellVoltagesList.add(binding.textViewCellVoltage10);
+
+        progressBarCellList.add(binding.progressBarCell1);
+        progressBarCellList.add(binding.progressBarCell2);
+        progressBarCellList.add(binding.progressBarCell3);
+        progressBarCellList.add(binding.progressBarCell4);
+        progressBarCellList.add(binding.progressBarCell5);
+        progressBarCellList.add(binding.progressBarCell6);
+        progressBarCellList.add(binding.progressBarCell7);
+        progressBarCellList.add(binding.progressBarCell8);
+        progressBarCellList.add(binding.progressBarCell9);
+        progressBarCellList.add(binding.progressBarCell10);
+
+        textViewCellBalancingStateList.add(binding.textViewBalancing1);
+        textViewCellBalancingStateList.add(binding.textViewBalancing2);
+        textViewCellBalancingStateList.add(binding.textViewBalancing3);
+        textViewCellBalancingStateList.add(binding.textViewBalancing4);
+        textViewCellBalancingStateList.add(binding.textViewBalancing5);
+        textViewCellBalancingStateList.add(binding.textViewBalancing6);
+        textViewCellBalancingStateList.add(binding.textViewBalancing7);
+        textViewCellBalancingStateList.add(binding.textViewBalancing8);
+        textViewCellBalancingStateList.add(binding.textViewBalancing9);
+        textViewCellBalancingStateList.add(binding.textViewBalancing10);
         sharedPreferences = PreferenceManager.getDefaultSharedPreferences(requireContext());
-        enableBalancingSwitch.setChecked(sharedPreferences.getBoolean("balancing_switch", false));
-        enableChargingSwitch.setChecked(sharedPreferences.getBoolean("charging_switch", false));
-        enableBalancingSwitch.setOnClickListener(v -> {
+        binding.switchBalancing.setChecked(sharedPreferences.getBoolean("balancing_switch", false));
+        binding.switchCharging.setChecked(sharedPreferences.getBoolean("charging_switch", false));
+
+        binding.switchBalancing.setOnClickListener(v -> {
             SharedPreferences.Editor editor = sharedPreferences.edit();
             if(bluetoothLeService != null && bluetoothLeService.getConnectionState() == BluetoothAdapter.STATE_CONNECTED) {
                 byte[] data = {0};
 
-                if(enableBalancingSwitch.isChecked()) {
+                if(binding.switchBalancing.isChecked()) {
                     if(onlyBalanceWhileCharging) {
                         if(chargeCurrentA > 0.02) {
                             data[0] = 1;
@@ -107,7 +101,7 @@ public class HomeFragment extends Fragment{
                             editor.putBoolean("balancing_switch", false);
                             editor.apply();
                             handlerToast.post(() -> Toast.makeText(requireContext(), "Balancing only allowed while charging", Toast.LENGTH_SHORT).show());
-                            enableBalancingSwitch.setChecked(false);
+                            binding.switchBalancing.setChecked(false);
                         }
                     } else {
                         data[0] = 1;
@@ -121,16 +115,16 @@ public class HomeFragment extends Fragment{
                 bluetoothLeService.writeCharacteristic("3005", data);
             } else {
                 handlerToast.post(() -> Toast.makeText(requireContext(), "Not connected", Toast.LENGTH_SHORT).show());
-                enableBalancingSwitch.setChecked(false);
+                binding.switchBalancing.setChecked(false);
                 editor.putBoolean("balancing_switch", false);
                 editor.apply();
             }
         });
-        enableChargingSwitch.setOnClickListener(v -> {
+        binding.switchCharging.setOnClickListener(v -> {
             SharedPreferences.Editor editor = sharedPreferences.edit();
             if(bluetoothLeService != null && bluetoothLeService.getConnectionState() == BluetoothAdapter.STATE_CONNECTED) {
                 byte[] data = {0};
-                if(enableChargingSwitch.isChecked()) {
+                if(binding.switchCharging.isChecked()) {
                     data[0] = 1;
                     editor.putBoolean("charging_switch", true);
                     editor.apply();
@@ -141,15 +135,14 @@ public class HomeFragment extends Fragment{
                 bluetoothLeService.writeCharacteristic("3006", data);
             } else {
                 handlerToast.post(() -> Toast.makeText(requireContext(), "Not connected", Toast.LENGTH_SHORT).show());
-                enableChargingSwitch.setChecked(false);
+                binding.switchCharging.setChecked(false);
                 editor.putBoolean("charging_switch", false);
                 editor.apply();
             }
         });
         Intent gattServiceIntent = new Intent(getActivity(), BluetoothLeService.class);
         requireActivity().bindService(gattServiceIntent, serviceConnection, Context.BIND_AUTO_CREATE);
-
-        return view;
+        return binding.getRoot();
     }
 
     private final BroadcastReceiver bleUpdateReceiver = new BroadcastReceiver() {
@@ -171,8 +164,12 @@ public class HomeFragment extends Fragment{
                         int chargeCurrentmA = ((data[3] & 0xFF) << 8) | (data[2] & 0xFF);
                         double batVoltagev = batVoltagemv / 1000.0;
                         chargeCurrentA = chargeCurrentmA / 1000.0;
-                        textViewCurrent.setText(df.format(chargeCurrentA));
-                        textViewBatVoltage.setText(df.format(batVoltagev));
+                        binding.textViewCurrent.setText(df.format(chargeCurrentA));
+                        binding.textViewBatVoltage.setText(df.format(batVoltagev));
+                        SharedPreferences.Editor editor = sharedPreferences.edit();
+                        editor.putString("batVoltage", df.format(batVoltagev));
+                        editor.putString("chargeCurrent", df.format(chargeCurrentA));
+                        editor.apply();
                     }
                     break;
                 case "3002":  // cell voltages
@@ -180,6 +177,7 @@ public class HomeFragment extends Fragment{
                     if(data != null) {
                         int lowestVoltage = Integer.MAX_VALUE;
                         int highestVoltage = Integer.MIN_VALUE;
+                        SharedPreferences.Editor editor = sharedPreferences.edit();
                         for (int i = 0; i < 10; i++) {
                             int index = i * 2;
                             byte msb = data[index + 1];
@@ -191,36 +189,48 @@ public class HomeFragment extends Fragment{
                                 highestVoltage = cellVoltage;
                             }
                             progressBarCellList.get(i).setProgress(cellVoltage);
-                            textViewCellVoltagesList.get(i).setText(String.format(Locale.getDefault(),"%.3f", cellVoltage / 1000.0));
+                            String cellVoltageString = String.format(Locale.getDefault(),"%.3f", cellVoltage / 1000.0);
+                            textViewCellVoltagesList.get(i).setText(cellVoltageString);
+
+                            editor.putInt("cellProgress" + i, cellVoltage);
+                            editor.putString("cellVoltage" + i, cellVoltageString);
+
                         }
                         int difference = highestVoltage - lowestVoltage;
                         String differenceString = difference + "mV";
-                        textViewVoltageDifference.setText(differenceString);
+                        binding.textViewDifference.setText(differenceString);
+                        editor.putString("voltageDifference", differenceString);
                         String voltageRange = String.format("%sV-%sV",
                                 df.format(lowestVoltage / 1000.0),
                                 df.format(highestVoltage / 1000.0));
-                        textViewVoltageRange.setText(voltageRange);
+                        binding.textViewRange.setText(voltageRange);
+                        editor.putString("voltageRange", voltageRange);
+                        editor.apply();
                     }
 
                     break;
                 case "3003":  // cell balancing state
                     data = intent.getByteArrayExtra("3003");
                     if(data != null) {
+                        SharedPreferences.Editor editor = sharedPreferences.edit();
                         for (int i = 0; i < 10; i++) {
                             int balancingState = data[i];
                             if (balancingState == 1) {
                                 textViewCellBalancingStateList.get(i).setText("B");
+                                editor.putString("cellBalancingState" + i, "B");
                             } else {
                                 textViewCellBalancingStateList.get(i).setText("");
+                                editor.putString("cellBalancingState" + i, "");
                             }
                         }
+                        editor.apply();
                     }
                     break;
                 case "3005":
                     data = intent.getByteArrayExtra("3005");
                     if(data != null) {
                         checked = data[0] != 0;
-                        enableBalancingSwitch.setChecked(checked);
+                        binding.switchBalancing.setChecked(checked);
                         SharedPreferences.Editor editor = sharedPreferences.edit();
                         editor.putBoolean("balancing_switch", checked);
                         editor.apply();
@@ -230,7 +240,7 @@ public class HomeFragment extends Fragment{
                     data = intent.getByteArrayExtra("3006");
                     if(data != null) {
                         checked = data[0] != 0;
-                        enableChargingSwitch.setChecked(checked);
+                        binding.switchCharging.setChecked(checked);
                         SharedPreferences.Editor editor = sharedPreferences.edit();
                         editor.putBoolean("charging_switch", checked);
                         editor.apply();
@@ -245,12 +255,10 @@ public class HomeFragment extends Fragment{
                 case "READY_TO_READ_CHARS":
                     if(intent.getBooleanExtra("READY_TO_READ_CHARS", false)) {
                         bluetoothLeService.readCharacteristicsForHomefragment();
-                       // boolean szt = sharedPreferences.getBoolean("auto_update", false);
-                       // blue
                     }
                     break;
                 case "CONNECTION_STATE_CHANGED":
-                    // on disconenct
+                    // on disconnect
                     if(!intent.getBooleanExtra("CONNECTION_STATE_CHANGED", false) && sharedPreferences.getBoolean("clear_on_disconnect", false)) {
                         clearBmsInfo();
                     }
@@ -259,10 +267,10 @@ public class HomeFragment extends Fragment{
     };
 
     private void clearBmsInfo() {
-        textViewBatVoltage.setText("0");
-        textViewCurrent.setText("0");
-        textViewVoltageRange.setText("0V-4.2V");
-        textViewVoltageDifference.setText("0mV");
+        binding.textViewBatVoltage.setText("0");
+        binding.textViewCurrent.setText("0");
+        binding.textViewRange.setText("0V-4.2V");
+        binding.textViewDifference.setText("0mV");
         for (TextView cellState:textViewCellBalancingStateList) {
             cellState.setText("");
         }
@@ -298,8 +306,9 @@ public class HomeFragment extends Fragment{
     }
     @Override
     public void onResume() {
-        enableChargingSwitch.setChecked(sharedPreferences.getBoolean("charging_switch", false));
-        enableBalancingSwitch.setChecked(sharedPreferences.getBoolean("balancing_switch", false));
+
+        binding.switchCharging.setChecked(sharedPreferences.getBoolean("charging_switch", false));
+        binding.switchBalancing.setChecked(sharedPreferences.getBoolean("balancing_switch", false));
         ContextCompat.registerReceiver(requireActivity(),bleUpdateReceiver, new IntentFilter("3001"), ContextCompat.RECEIVER_NOT_EXPORTED);
         ContextCompat.registerReceiver(requireActivity(),bleUpdateReceiver, new IntentFilter("3002"), ContextCompat.RECEIVER_NOT_EXPORTED);
         ContextCompat.registerReceiver(requireActivity(),bleUpdateReceiver, new IntentFilter("3003"), ContextCompat.RECEIVER_NOT_EXPORTED);
@@ -308,9 +317,6 @@ public class HomeFragment extends Fragment{
         ContextCompat.registerReceiver(requireActivity(),bleUpdateReceiver, new IntentFilter("4008"), ContextCompat.RECEIVER_NOT_EXPORTED);
         ContextCompat.registerReceiver(requireActivity(),bleUpdateReceiver, new IntentFilter("READY_TO_READ_CHARS"), ContextCompat.RECEIVER_NOT_EXPORTED);
         ContextCompat.registerReceiver(requireActivity(),bleUpdateReceiver, new IntentFilter("CONNECTION_STATE_CHANGED"), ContextCompat.RECEIVER_NOT_EXPORTED);
-        if(bluetoothLeService != null) {
-           bluetoothLeService.readCharacteristicsForHomefragment();
-        }
         super.onResume();
     }
     @Override
@@ -327,8 +333,18 @@ public class HomeFragment extends Fragment{
         }
         super.onAttach(context);
     }
-
+    @Override
     public void onViewCreated(@NonNull View view, Bundle savedInstanceState) {
+
+        binding.textViewBatVoltage.setText(sharedPreferences.getString("batVoltage", "0"));
+        binding.textViewCurrent.setText(sharedPreferences.getString("chargeCurrent", "0"));
+        binding.textViewRange.setText(sharedPreferences.getString("voltageRange", "0V-4.2V"));
+        binding.textViewDifference.setText(sharedPreferences.getString("voltageDifference", "0mV"));
+        for(int i = 0; i < 10; i++) {
+            progressBarCellList.get(i).setProgress(sharedPreferences.getInt("cellProgress" + i, 0));
+            textViewCellVoltagesList.get(i).setText(sharedPreferences.getString("cellVoltage" + i, "0"));
+            textViewCellBalancingStateList.get(i).setText(sharedPreferences.getString("cellBalancingState" + i, "0"));
+        }
         super.onViewCreated(view, savedInstanceState);
     }
 }

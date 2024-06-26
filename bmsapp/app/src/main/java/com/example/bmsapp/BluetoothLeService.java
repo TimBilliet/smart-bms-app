@@ -29,10 +29,6 @@ import android.widget.Toast;
 import androidx.core.app.ActivityCompat;
 import androidx.preference.PreferenceManager;
 
-import com.example.bmsapp.message.BleOTAMessage;
-import com.example.bmsapp.message.EndCommandAckMessage;
-import com.example.bmsapp.message.StartCommandAckMessage;
-
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -162,14 +158,7 @@ public class BluetoothLeService extends Service {
     }
 
     public int getConnectionState() {
-       // if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-          //  if (ActivityCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED) {
-         //       return bluetoothManager.getConnectionState(device, BluetoothGatt.GATT);
-         //   }
-        //} else if (ActivityCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH) == PackageManager.PERMISSION_GRANTED) {
-            return bluetoothManager.getConnectionState(device, BluetoothGatt.GATT);
-       // }
-       // return 99;
+        return bluetoothManager.getConnectionState(device, BluetoothGatt.GATT);
     }
 
     public BluetoothDevice getConnectedDevice() {
@@ -180,7 +169,7 @@ public class BluetoothLeService extends Service {
         }
     }
     public void startOta(Uri uri) {
-        new Thread(() -> {
+        //new Thread(() -> {
             try {
                 InputStream inputStream = getContentResolver().openInputStream(uri);
                 if(inputStream != null) {
@@ -190,7 +179,7 @@ public class BluetoothLeService extends Service {
                 showDialog("Error while starting OTA update: " + ex.getMessage());
             }
             toggleOtaNotifications(BluetoothGattDescriptor.ENABLE_INDICATION_VALUE);
-        }).start();
+        //}).start();
     }
     private byte[] readBytes(InputStream inputStream) throws IOException {
         ByteArrayOutputStream buffer = new ByteArrayOutputStream();

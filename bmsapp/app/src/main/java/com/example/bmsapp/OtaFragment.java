@@ -29,7 +29,6 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.core.content.ContextCompat;
 import androidx.fragment.app.Fragment;
-import androidx.recyclerview.widget.LinearLayoutManager;
 
 import com.example.bmsapp.databinding.FragmentOtaBinding;
 
@@ -47,7 +46,7 @@ public class OtaFragment extends Fragment {
     private Uri selectedFile;
     private int sectorsSize;
     StatusRecyclerViewAdapter recyclerViewAdapter;
-    private List<String> statusList = new ArrayList<>();
+    private final List<String> statusList = new ArrayList<>();
     private long otaStartTime;
     private long otaEndTime;
 
@@ -84,12 +83,10 @@ public class OtaFragment extends Fragment {
             } else {
                 handlerToast.post(() -> Toast.makeText(getContext(), "Not connected.", Toast.LENGTH_LONG).show());
             }
-            //other
         });
         if(bluetoothLeService.getConnectionState() == BluetoothGatt.STATE_CONNECTED) {
             bluetoothLeService.requestHighPriorityConnection();
         }
-       // binding.recyclerViewOTA.setLayoutManager(new LinearLayoutManager(requireContext()));
         recyclerViewAdapter = new StatusRecyclerViewAdapter(statusList);
         binding.recyclerViewOTA.setAdapter(recyclerViewAdapter);
         return binding.getRoot();
@@ -98,13 +95,6 @@ public class OtaFragment extends Fragment {
         MainActivity activity = (MainActivity) requireActivity();
         if (activity.getBluetoothservice() != null && bluetoothLeService == null) {
             bluetoothLeService = activity.getBluetoothservice();
-            if(bluetoothLeService == null) {
-                logQuick("bleservice null");
-            } else {
-                logQuick("not null");
-
-            }
-
         }
         super.onAttach(context);
     }
@@ -156,7 +146,8 @@ public class OtaFragment extends Fragment {
                 if (cursor != null && cursor.moveToFirst()) {
                     fileName = cursor.getString(cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME));
                 }
-            } catch (Exception e) {
+            } catch (Exception ex) {
+                handlerToast.post(() -> Toast.makeText(getContext(), "Error while getting filename: " + ex.getMessage(), Toast.LENGTH_LONG).show());
             }
         } else if (Objects.equals(uri.getScheme(), "file")) {
             fileName = uri.getLastPathSegment();

@@ -4,6 +4,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:id="@+id/about_frag"
     tools:context=".AboutFragment">
 
     <androidx.constraintlayout.widget.ConstraintLayout
@@ -15,7 +16,7 @@
             android:id="@+id/textViewScan"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Version: v0.1"
+            android:text="@string/version_v0_1"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintHorizontal_bias="0.498"
@@ -27,7 +28,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginBottom="24dp"
-            android:text="Made by Tim Billiet"
+            android:text="@string/made_by_tim_billiet"
             app:layout_constraintBottom_toTopOf="@+id/textViewGithub"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
@@ -39,7 +40,7 @@
             android:layout_height="wrap_content"
             android:layout_marginBottom="24dp"
             android:autoLink="web"
-            android:text="github.com/TimBilliet"
+            android:text="@string/github_com_timbilliet"
             app:layout_constraintBottom_toTopOf="@+id/textViewScan"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
