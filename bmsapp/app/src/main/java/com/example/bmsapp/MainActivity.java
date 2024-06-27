@@ -164,12 +164,14 @@ public class MainActivity extends AppCompatActivity {
                 dialog.show();
                 finish();
             }
-            if(!Objects.equals(storedMac, "AA:AA:AA:AA:AA:AA") && isValidMacAddress(storedMac)) {
-                bluetoothLeService.connect(convertToUpperCase(storedMac));
-            } else {
-                Toast.makeText(MainActivity.this, "Invalid stored MAC address.", Toast.LENGTH_SHORT).show();
-            }
+            if(bluetoothAdapter.isEnabled()) {
+                if(!Objects.equals(storedMac, "AA:AA:AA:AA:AA:AA") && isValidMacAddress(storedMac)) {
+                    bluetoothLeService.connect(convertToUpperCase(storedMac));
+                } else {
+                    Toast.makeText(MainActivity.this, "Invalid stored MAC address.", Toast.LENGTH_SHORT).show();
+                }
 
+            }
             bluetoothLeService.setIsMinimized(false);
             logQuick("connecting");
         }

@@ -170,6 +170,7 @@ public class BluetoothLeService extends Service {
     }
     public void startOta(Uri uri) {
         //new Thread(() -> {
+        long start = System.nanoTime();
             try {
                 InputStream inputStream = getContentResolver().openInputStream(uri);
                 if(inputStream != null) {
@@ -178,6 +179,8 @@ public class BluetoothLeService extends Service {
             } catch (Exception ex) {
                 showDialog("Error while starting OTA update: " + ex.getMessage());
             }
+            long end = System.nanoTime();
+            logQuick("time: " + (end - start)/1000);
             toggleOtaNotifications(BluetoothGattDescriptor.ENABLE_INDICATION_VALUE);
         //}).start();
     }
@@ -412,6 +415,7 @@ public class BluetoothLeService extends Service {
         }).start();
     }
     private void postNextPacket() {
+        long start = System.nanoTime();
         byte[] packet = packets.pollFirst();
         if (packet == null) {
             postCommandEnd();
@@ -423,6 +427,8 @@ public class BluetoothLeService extends Service {
                 bluetoothGatt.writeCharacteristic(recvFwChar);
             }
         }
+        long end = System.nanoTime();
+        logQuick(" timeee: " + (end-start)/1000);
     }
 
     private void parseSectorAck(byte[] data) {

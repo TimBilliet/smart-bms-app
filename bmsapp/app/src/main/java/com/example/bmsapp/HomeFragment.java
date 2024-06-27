@@ -343,7 +343,7 @@ public class HomeFragment extends Fragment{
         for(int i = 0; i < 10; i++) {
             progressBarCellList.get(i).setProgress(sharedPreferences.getInt("cellProgress" + i, 0));
             textViewCellVoltagesList.get(i).setText(sharedPreferences.getString("cellVoltage" + i, "0"));
-            textViewCellBalancingStateList.get(i).setText(sharedPreferences.getString("cellBalancingState" + i, "0"));
+            textViewCellBalancingStateList.get(i).setText(sharedPreferences.getString("cellBalancingState" + i, ""));
         }
         super.onViewCreated(view, savedInstanceState);
     }
