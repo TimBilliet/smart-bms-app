@@ -1,6 +1,7 @@
 package com.example.bmsapp;
 
 import android.bluetooth.BluetoothAdapter;
+import android.bluetooth.BluetoothGatt;
 import android.content.BroadcastReceiver;
 import android.content.ComponentName;
 import android.content.Context;
@@ -306,7 +307,9 @@ public class HomeFragment extends Fragment{
     }
     @Override
     public void onResume() {
-
+        if(bluetoothLeService != null && bluetoothLeService.getConnectionState() == BluetoothGatt.STATE_CONNECTED) {
+            bluetoothLeService.requestConnectionPriority(BluetoothGatt.CONNECTION_PRIORITY_BALANCED);
+        }
         binding.switchCharging.setChecked(sharedPreferences.getBoolean("charging_switch", false));
         binding.switchBalancing.setChecked(sharedPreferences.getBoolean("balancing_switch", false));
         ContextCompat.registerReceiver(requireActivity(),bleUpdateReceiver, new IntentFilter("3001"), ContextCompat.RECEIVER_NOT_EXPORTED);

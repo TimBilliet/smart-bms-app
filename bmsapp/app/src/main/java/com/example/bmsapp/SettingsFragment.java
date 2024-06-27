@@ -4,6 +4,7 @@ package com.example.bmsapp;
 import android.Manifest;
 import android.app.AlertDialog;
 import android.bluetooth.BluetoothAdapter;
+import android.bluetooth.BluetoothGatt;
 import android.bluetooth.BluetoothGattDescriptor;
 import android.bluetooth.BluetoothProfile;
 import android.content.BroadcastReceiver;
@@ -372,6 +373,9 @@ public class SettingsFragment extends PreferenceFragmentCompat {
     @Override
     public void onResume() {
         super.onResume();
+        if(bluetoothLeService != null && bluetoothLeService.getConnectionState() == BluetoothGatt.STATE_CONNECTED) {
+            bluetoothLeService.requestConnectionPriority(BluetoothGatt.CONNECTION_PRIORITY_BALANCED);
+        }
         ContextCompat.registerReceiver(requireContext(), bleUpdateReceiver, new IntentFilter("CONNECTION_STATE_CHANGED"), ContextCompat.RECEIVER_NOT_EXPORTED);
         ContextCompat.registerReceiver(requireContext(), bleUpdateReceiver, new IntentFilter("4001"), ContextCompat.RECEIVER_NOT_EXPORTED);
         ContextCompat.registerReceiver(requireContext(), bleUpdateReceiver, new IntentFilter("4002"), ContextCompat.RECEIVER_NOT_EXPORTED);

@@ -710,18 +710,6 @@ public class BluetoothLeService extends Service {
                         tempHomefragmentBluetoothGattCharacteristicList.addAll(homefragmentBluetoothGattCharacteristicList);
                     }
                 }
-                /*
-                if (!tempBluetoothGattCharacteristicList.isEmpty()) {
-                    requestCharacteristics();
-                } else {
-                    logQuick("all chars read");
-                    end = System.currentTimeMillis();
-                    logQuick("end end"+ end);
-                    logQuick("Time taken: " + (end - start) + "ms");
-                    tempBluetoothGattCharacteristicList.addAll(bluetoothGattCharacteristicList);
-                }
-
-                 */
             }
         }
     };
@@ -731,14 +719,16 @@ public class BluetoothLeService extends Service {
         bluetoothGatt.readCharacteristic(tempBluetoothGattCharacteristicList.get(tempBluetoothGattCharacteristicList.size() - 1));
     }
 
-    public void requestHighPriorityConnection() {
-
-        if(bluetoothGatt.requestConnectionPriority(BluetoothGatt.CONNECTION_PRIORITY_HIGH)) {
-            updateOtaStatus("Successfully requested high priority connection");
+    public void requestConnectionPriority(int connectionPriority) {
+        if(connectionPriority == BluetoothGatt.CONNECTION_PRIORITY_HIGH) {
+            if(bluetoothGatt.requestConnectionPriority(connectionPriority)) {
+                updateOtaStatus("Successfully requested high priority connection");
+            } else {
+                updateOtaStatus("High priority connection request unsuccessful");
+            }
         } else {
-            updateOtaStatus("High priority connection request unsuccessful");
+            bluetoothGatt.requestConnectionPriority(connectionPriority);
         }
-
     }
     public void writeAllParametersToBMS() {
 

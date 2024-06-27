@@ -79,14 +79,12 @@ public class OtaFragment extends Fragment {
         binding.buttonUpload.setOnClickListener(v -> {
             logQuick("upload");
             if(bluetoothLeService != null && bluetoothLeService.getConnectionState() == BluetoothProfile.STATE_CONNECTED) {
+                bluetoothLeService.requestConnectionPriority(BluetoothGatt.CONNECTION_PRIORITY_HIGH);
                 bluetoothLeService.startOta(selectedFile);
             } else {
                 handlerToast.post(() -> Toast.makeText(getContext(), "Not connected.", Toast.LENGTH_LONG).show());
             }
         });
-        if(bluetoothLeService.getConnectionState() == BluetoothGatt.STATE_CONNECTED) {
-            bluetoothLeService.requestHighPriorityConnection();
-        }
         recyclerViewAdapter = new StatusRecyclerViewAdapter(statusList);
         binding.recyclerViewOTA.setAdapter(recyclerViewAdapter);
         return binding.getRoot();
@@ -201,17 +199,7 @@ public class OtaFragment extends Fragment {
             }
         }
     };
-    private final ServiceConnection serviceConnection = new ServiceConnection() {
-        @Override
-        public void onServiceConnected(ComponentName componentName, IBinder service) {
 
-        }
-
-        @Override
-        public void onServiceDisconnected(ComponentName componentName) {
-            bluetoothLeService = null;
-        }
-    };
     public void logQuick(String message) {
         Log.d(TAG, message);
     }
